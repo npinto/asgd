@@ -11,10 +11,11 @@ from itertools import izip
 class NaiveBinaryASGD(object):
 
     def __init__(self, n_features, sgd_step_size0=1e-2, l2_regularization=1e-3,
-                 n_iterations=10, dtype=np.float32):
+                 n_iterations=10, feedback=False, dtype=np.float32):
 
         self.n_features = n_features
         self.n_iterations = n_iterations
+        self.feedback = feedback
 
         assert l2_regularization > 0
         self.l2_regularization = l2_regularization
@@ -110,6 +111,10 @@ class NaiveBinaryASGD(object):
             Xb = X[idx]
             yb = y[idx]
             self.partial_fit(Xb, yb)
+
+            if self.feedback:
+                self.sgd_weights = self.asgd_weights
+                self.sgd_bias = self.asgd_bias
 
     def predict(self, X):
         return np.sign(dot(self.asgd_weights, X.T) + self.asgd_bias)
