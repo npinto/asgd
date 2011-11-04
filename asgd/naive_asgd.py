@@ -116,5 +116,8 @@ class NaiveBinaryASGD(object):
                 self.sgd_weights = self.asgd_weights
                 self.sgd_bias = self.asgd_bias
 
+    def decision_function(self, X):
+        return dot(self.asgd_weights, X.T) + self.asgd_bias
+
     def predict(self, X):
-        return np.sign(dot(self.asgd_weights, X.T) + self.asgd_bias)
+        return np.sign(self.decision_function(X))
