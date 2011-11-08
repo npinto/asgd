@@ -1,2 +1,2 @@
-from naive_asgd import NaiveMulticlassASGD
+from naive_asgd import NaiveMulticlassASGD,  NaiveBinaryASGD
 from experimental_asgd import ExperimentalBinaryASGD
