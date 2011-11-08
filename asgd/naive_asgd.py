@@ -11,7 +11,8 @@ from itertools import izip
 class NaiveBinaryASGD(object):
 
     def __init__(self, n_features, sgd_step_size0=1e-2, l2_regularization=1e-3,
-                 n_iterations=10, feedback=False, dtype=np.float32):
+                 n_iterations=10, feedback=False, dtype=np.float32,
+                 n_classes=1):
 
         self.n_features = n_features
         self.n_iterations = n_iterations
@@ -21,8 +22,8 @@ class NaiveBinaryASGD(object):
         self.l2_regularization = l2_regularization
         self.dtype = dtype
 
-        self.sgd_weights = np.zeros((n_features), dtype=dtype)
-        self.sgd_bias = np.zeros((1), dtype=dtype)
+        self.sgd_weights = np.zeros((n_features, n_classes), dtype=dtype)
+        self.sgd_bias = np.zeros((n_classes,), dtype=dtype)
         self.sgd_step_size0 = sgd_step_size0
         self.sgd_step_size = sgd_step_size0
         self.sgd_step_size_scheduling_exponent = 2. / 3
@@ -63,6 +64,7 @@ class NaiveBinaryASGD(object):
             if l2_regularization:
                 sgd_weights *= (1 - l2_regularization * sgd_step_size)
 
+				
             if margin < 1:
 
                 sgd_weights += sgd_step_size * label * obs
