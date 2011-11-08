@@ -1,47 +1,27 @@
 CC = gcc
 DEBUG = -g
-CFLAGS = -Wall -std=c99 -O3
+CFLAGS = -Wall -std=c99
 
-# these variables are to compile with OpenBLAS
-LIB = -lm -lgfortran -lopenblas
-INCDIR = -I/opt/OpenBLAS/include
-LIBDIR = -L/opt/OpenBLAS/lib
-LDLIB = /opt/OpenBLAS/lib
+LIB = -lm -lcblas
+INCDIR = -I/usr/include/
+LIBDIR = -L/usr/lib64/atlas
 
-# these variables are to compile with ACML
-#LIB = -lm -lacml
-#INCDIR = -I/opt/acml5.0.0/gfortran64_int64/include
-#LIBDIR = -I/opt/acml5.0.0/gfortran64_int64/lib
+# decide which library to use for the linear algebra
+ifeq ($(TYPE),sse)
+LTYPE = -DASGD_SSE
+endif
+ifeq ($(TYPE),blas)
+LTYPE = -DASGD_BLAS
+endif
+ifeq ($(TYPE),)
+LTYPE =
+endif
 
-blas_asgd: main.o blas_asgd.o
-	$(CC) $(CFLAGS) $(DEBUG) $(INCDIR) $(LIBDIR) $(LIB) -o blas_asgd main.o blas_asgd.o
-
-main.o: main.c
-	$(CC) $(CFLAGS) $(DEBUG) $(INCDIR) $(LIBDIR) $(LIB) -c -o main.o main.c
-
-blas_asgd.o: blas_asgd.c blas_asgd.h
-	$(CC) $(CFLAGS) $(DEBUG) $(INCDIR) $(LIBDIR) $(LIB) -c -o blas_asgd.o blas_asgd.c
-
-
-
-# run the compiled program
-.ONESHELL: run
-.PHONY: run
-run:
-	export LD_LIBRARY_PATH=$(LDLIB)
-	./blas_asgd
-
-
-# debug the compiled program
-.ONESHELL: debug
-.PHONY: debug
-debug:
-	export LD_LIBRARY_PATH=$(LDLIB)
-	gdb ./blas_asgd
-
+asgd_unit: tests/asgd_unit.c asgd.c
+	$(CC) $(CFLAGS) $(DEBUG) $(LTYPE) $(INCDIR) $(LIBDIR) $(LIB) -o bin/asgd_unit tests/asgd_unit.c asgd.c
 
 # clean up the compilation byproducts
 .PHONY: clean
 clean:
-	rm -f *.o
-	rm -f blas_asgd
+	rm -fR *.o
+	rm -f bin/asgd_unit
