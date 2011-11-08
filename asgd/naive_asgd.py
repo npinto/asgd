@@ -8,12 +8,13 @@ from numpy import dot
 from itertools import izip
 
 
-class NaiveBinaryASGD(object):
+class NaiveMulticlassASGD(object):
 
     def __init__(self, n_features, sgd_step_size0=1e-2, l2_regularization=1e-3,
                  n_iterations=10, feedback=False, dtype=np.float32,
-                 n_classes=1):
-
+                 n_classes=2):
+        
+        self.n_classes = n_classes
         self.n_features = n_features
         self.n_iterations = n_iterations
         self.feedback = feedback
@@ -29,8 +30,8 @@ class NaiveBinaryASGD(object):
         self.sgd_step_size_scheduling_exponent = 2. / 3
         self.sgd_step_size_scheduling_multiplier = l2_regularization
 
-        self.asgd_weights = np.zeros((n_features), dtype=dtype)
-        self.asgd_bias = np.zeros((1), dtype=dtype)
+        self.asgd_weights = np.zeros((n_features, n_classes), dtype=dtype)
+        self.asgd_bias = np.zeros((n_classes), dtype=dtype)
         self.asgd_step_size0 = 1
         self.asgd_step_size = self.asgd_step_size0
 
@@ -38,6 +39,7 @@ class NaiveBinaryASGD(object):
 
     def partial_fit(self, X, y):
 
+        
         sgd_step_size0 = self.sgd_step_size0
         sgd_step_size = self.sgd_step_size
         sgd_step_size_scheduling_exponent = \
@@ -54,21 +56,21 @@ class NaiveBinaryASGD(object):
         l2_regularization = self.l2_regularization
 
         n_observations = self.n_observations
+        n_classes = self.n_classes 
 
         for obs, label in izip(X, y):
-
+            label = 2*(np.arange(n_classes) == label).astype(int) - 1
             # 1. compute margin
             margin = label * (dot(obs, sgd_weights) + sgd_bias)
 
             # 2.2 update sgd
             if l2_regularization:
                 sgd_weights *= (1 - l2_regularization * sgd_step_size)
-
-				
-            if margin < 1:
-
-                sgd_weights += sgd_step_size * label * obs
-                sgd_bias += sgd_step_size * label
+                
+            for cls_ind in range(sgd_weights.shape[1]):
+                if margin[cls_ind] < 1:
+                    sgd_weights[:, cls_ind] += sgd_step_size * label[cls_ind] * obs
+                    sgd_bias[cls_ind] += sgd_step_size * label[cls_ind]
 
             # 2.2 update asgd
             asgd_weights = (1 - asgd_step_size) * asgd_weights \
@@ -100,6 +102,7 @@ class NaiveBinaryASGD(object):
 
         assert X.ndim == 2
         assert y.ndim == 1
+        assert set(y) <= set(range(self.n_classes))
 
         n_points, n_features = X.shape
         assert n_features == self.n_features
@@ -119,7 +122,7 @@ class NaiveBinaryASGD(object):
                 self.sgd_bias = self.asgd_bias
 
     def decision_function(self, X):
-        return dot(self.asgd_weights, X.T) + self.asgd_bias
+        return dot(X, self.asgd_weights) + self.asgd_bias
 
     def predict(self, X):
-        return np.sign(self.decision_function(X))
+        return self.decision_function(X).argmax(1)
