@@ -98,3 +98,36 @@ def test_naive_multiclass_asgd():
     ytst_acc = (ytst_preds == y).mean()
     assert_equal(ytrn_acc, 0.511)
     assert_equal(ytst_acc, 0.324)
+
+
+def test_naive_multiclass_asgd_ova():
+    n_points = 1e3
+    n_features = 1e2
+    X, y = get_fake_multiclass_data(n_points, n_features, 3, 42)
+    Xtst, ytst = get_fake_multiclass_data(n_points, n_features, 3, 43)
+    clf = ASGDMulti(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
+               n_iterations=4, dtype=np.float32, n_classes=3)
+    clf.partial_fit(X, y)
+
+    y0 = 2 * (y == 0).astype(np.int) - 1
+    y1 = 2 * (y == 1).astype(np.int) - 1
+    y2 = 2 * (y == 2).astype(np.int) - 1
+
+    clf0 = ASGD(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
+               n_iterations=4, dtype=np.float32)
+    clf0.partial_fit(X, y0)
+    clf1 = ASGD(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
+               n_iterations=4, dtype=np.float32)
+    clf1.partial_fit(X, y1)
+    clf2 = ASGD(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
+               n_iterations=4, dtype=np.float32)
+    clf2.partial_fit(X, y2)
+
+    m = clf.decision_function(Xtst)
+    m0 = clf0.decision_function(Xtst)
+    m1 = clf1.decision_function(Xtst)
+    m2 = clf2.decision_function(Xtst)
+
+    M = np.column_stack([m0, m1, m2])
+
+    np.testing.assert_array_equal(m, M)
