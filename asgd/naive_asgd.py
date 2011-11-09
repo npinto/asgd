@@ -35,6 +35,8 @@ class NaiveBinaryASGD(object):
 
         self.n_observations = 0
 
+        self.margin_avg = 0
+
     def partial_fit(self, X, y):
 
         sgd_step_size0 = self.sgd_step_size0
@@ -67,6 +69,10 @@ class NaiveBinaryASGD(object):
 
                 sgd_weights += sgd_step_size * label * obs
                 sgd_bias += sgd_step_size * label
+
+                self.margin_avg = .999 * self.margin_avg + .001 * margin
+            else:
+                self.margin_avg = .999 * self.margin_avg + .001
 
             # 2.2 update asgd
             asgd_weights = (1 - asgd_step_size) * asgd_weights \
