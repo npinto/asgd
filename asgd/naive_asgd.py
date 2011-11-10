@@ -173,6 +173,7 @@ class NaiveMulticlassASGD(object):
 
         for obs, label in izip(X, y):
             label = 2 * (np.arange(n_classes) == label).astype(int) - 1
+
             # 1. compute margin
             margin = label * (dot(obs, sgd_weights) + sgd_bias)
 
@@ -180,10 +181,14 @@ class NaiveMulticlassASGD(object):
             if l2_regularization:
                 sgd_weights *= (1 - l2_regularization * sgd_step_size)
 
-            for c_ind in range(sgd_weights.shape[1]):
-                if margin[c_ind] < 1:
-                    sgd_weights[:, c_ind] += sgd_step_size * label[c_ind] * obs
-                    sgd_bias[c_ind] += sgd_step_size * label[c_ind]
+            violations = margin < 1
+            label_violated = label[violations]
+            sgd_weights[:, violations] += (
+                sgd_step_size
+                * label_violated[np.newaxis, :]
+                * obs[:, np.newaxis]
+            )
+            sgd_bias[violations] += sgd_step_size * label_violated
 
             # 2.2 update asgd
             asgd_weights = (1 - asgd_step_size) * asgd_weights \
