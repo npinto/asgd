@@ -122,7 +122,7 @@ class NaiveBinaryASGD(object):
         return np.sign(self.decision_function(X))
 
 
-class NaiveMulticlassASGD(object):
+class NaiveOVAASGD(object):
 
     def __init__(self, n_features, sgd_step_size0=1e-2, l2_regularization=1e-3,
                  n_iterations=10, feedback=False, dtype=np.float32,

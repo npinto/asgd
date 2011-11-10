@@ -3,7 +3,7 @@ from numpy.testing import assert_allclose
 import numpy as np
 
 from asgd import NaiveBinaryASGD as ASGD
-from asgd import NaiveMulticlassASGD as ASGDMulti
+from asgd import NaiveOVAASGD as OVAASGD
 
 RTOL = 1e-6
 ATOL = 1e-6
@@ -70,14 +70,14 @@ def test_naive_asgd_with_feedback():
     assert_equal(ytst_acc, 0.505)
 
 
-def test_naive_asgd_binary_multi_labels():
+def test_naive_asgd_multi_labels():
     n_points = 1e3
     n_features = 1e2
     X, y = get_fake_binary_data_multi_labels(n_points, n_features, 42)
     Xtst, ytst = get_fake_binary_data_multi_labels(n_points, n_features, 43)
 
-    clf = ASGDMulti(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
-               n_iterations=4, dtype=np.float32)
+    clf = OVAASGD(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
+                  n_iterations=4, dtype=np.float32)
     clf.fit(X, y)
     ytrn_preds = clf.predict(X)
     ytst_preds = clf.predict(Xtst)
@@ -87,14 +87,14 @@ def test_naive_asgd_binary_multi_labels():
     assert_equal(ytst_acc, 0.513)
 
 
-def test_naive_multiclass_asgd():
+def test_naive_multiclass_ova_asgd():
     n_points = 1e3
     n_features = 1e2
     X, y = get_fake_multiclass_data(n_points, n_features, 3, 42)
     Xtst, ytst = get_fake_multiclass_data(n_points, n_features, 3, 43)
 
-    clf = ASGDMulti(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
-               n_iterations=4, dtype=np.float32, n_classes=3)
+    clf = OVAASGD(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
+                  n_iterations=4, dtype=np.float32, n_classes=3)
     clf.fit(X, y)
     ytrn_preds = clf.predict(X)
     ytst_preds = clf.predict(Xtst)
@@ -104,13 +104,13 @@ def test_naive_multiclass_asgd():
     assert_equal(ytst_acc, 0.324)
 
 
-def test_naive_multiclass_asgd_ova():
+def test_naive_multiclass_ova_vs_binary_asgd():
     n_points = 1e3
     n_features = 1e2
     X, y = get_fake_multiclass_data(n_points, n_features, 3, 42)
     Xtst, ytst = get_fake_multiclass_data(n_points, n_features, 3, 43)
-    clf = ASGDMulti(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
-               n_iterations=4, dtype=np.float32, n_classes=3)
+    clf = OVAASGD(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
+                  n_iterations=4, dtype=np.float32, n_classes=3)
     clf.partial_fit(X, y)
 
     y0 = 2 * (y == 0).astype(np.int) - 1
