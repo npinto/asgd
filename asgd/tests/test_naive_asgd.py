@@ -1,8 +1,12 @@
 from nose.tools import assert_equal
+from numpy.testing import assert_allclose
 import numpy as np
 
 from asgd import NaiveBinaryASGD as ASGD
 from asgd import NaiveMulticlassASGD as ASGDMulti
+
+RTOL = 1e-6
+ATOL = 1e-6
 
 
 def get_fake_data(n_points, n_features, rseed):
@@ -130,4 +134,4 @@ def test_naive_multiclass_asgd_ova():
 
     M = np.column_stack([m0, m1, m2])
 
-    np.testing.assert_array_equal(m, M)
+    np.testing.assert_allclose(m, M, rtol=RTOL, atol=ATOL)
