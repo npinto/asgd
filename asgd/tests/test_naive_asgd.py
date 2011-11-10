@@ -8,10 +8,12 @@ from asgd import NaiveOVAASGD as OVAASGD
 RTOL = 1e-6
 ATOL = 1e-6
 
+N_POINTS = 1e3
+N_FEATURES = 1e2
 
 def get_fake_data(n_points, n_features, rseed):
     np.random.seed(rseed)
-    X = np.random.randn(n_points, n_features).astype('f')
+    X = np.random.randn(n_points, n_features).astype(np.float32)
     y = 2 * (np.random.randn(n_points) > 0) - 1
     X[y == 1] += 1e-1
     return X, y
@@ -19,15 +21,15 @@ def get_fake_data(n_points, n_features, rseed):
 
 def get_fake_binary_data_multi_labels(n_points, n_features, rseed):
     np.random.seed(rseed)
-    X = np.random.randn(n_points, n_features).astype('f')
-    y = (np.random.randn(n_points) > 0)
-    X[y == 1] += 1e-1
+    X = np.random.randn(n_points, n_features).astype(np.float32)
+    y = np.random.randn(n_points) > 0
+    X[y] += 1e-1
     return X, y
 
 
 def get_fake_multiclass_data(n_points, n_features, n_classes, rseed):
     np.random.seed(rseed)
-    X = np.random.randn(n_points, n_features).astype('f')
+    X = np.random.randn(n_points, n_features).astype(np.float32)
     z = np.random.random((n_points,))
     y = np.zeros((n_points,))
     for ind in range(n_classes):
@@ -37,12 +39,10 @@ def get_fake_multiclass_data(n_points, n_features, n_classes, rseed):
 
 
 def test_naive_asgd():
-    n_points = 1e3
-    n_features = 1e2
-    X, y = get_fake_data(n_points, n_features, 42)
-    Xtst, ytst = get_fake_data(n_points, n_features, 43)
+    X, y = get_fake_data(N_POINTS, N_FEATURES, 42)
+    Xtst, ytst = get_fake_data(N_POINTS, N_FEATURES, 43)
 
-    clf = ASGD(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
+    clf = ASGD(N_FEATURES, sgd_step_size0=1e-3, l2_regularization=1e-6,
                n_iterations=4, dtype=np.float32)
     clf.fit(X, y)
     ytrn_preds = clf.predict(X)
@@ -54,12 +54,10 @@ def test_naive_asgd():
 
 
 def test_naive_asgd_with_feedback():
-    n_points = 1e3
-    n_features = 1e2
-    X, y = get_fake_data(n_points, n_features, 42)
-    Xtst, ytst = get_fake_data(n_points, n_features, 43)
+    X, y = get_fake_data(N_POINTS, N_FEATURES, 42)
+    Xtst, ytst = get_fake_data(N_POINTS, N_FEATURES, 43)
 
-    clf = ASGD(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
+    clf = ASGD(N_FEATURES, sgd_step_size0=1e-3, l2_regularization=1e-6,
                n_iterations=4, feedback=True, dtype=np.float32)
     clf.fit(X, y)
     ytrn_preds = clf.predict(X)
@@ -71,13 +69,12 @@ def test_naive_asgd_with_feedback():
 
 
 def test_naive_asgd_multi_labels():
-    n_points = 1e3
-    n_features = 1e2
-    X, y = get_fake_binary_data_multi_labels(n_points, n_features, 42)
-    Xtst, ytst = get_fake_binary_data_multi_labels(n_points, n_features, 43)
+    X, y = get_fake_binary_data_multi_labels(N_POINTS, N_FEATURES, 42)
+    Xtst, ytst = get_fake_binary_data_multi_labels(N_POINTS, N_FEATURES, 43)
 
-    clf = OVAASGD(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
-                  n_iterations=4, dtype=np.float32)
+    # n_classes is 2 since it is actually a binary case
+    clf = OVAASGD(2, N_FEATURES, sgd_step_size0=1e-3,
+                  l2_regularization=1e-6, n_iterations=4, dtype=np.float32)
     clf.fit(X, y)
     ytrn_preds = clf.predict(X)
     ytst_preds = clf.predict(Xtst)
@@ -88,50 +85,58 @@ def test_naive_asgd_multi_labels():
 
 
 def test_naive_multiclass_ova_asgd():
-    n_points = 1e3
-    n_features = 1e2
-    X, y = get_fake_multiclass_data(n_points, n_features, 3, 42)
-    Xtst, ytst = get_fake_multiclass_data(n_points, n_features, 3, 43)
 
-    clf = OVAASGD(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
-                  n_iterations=4, dtype=np.float32, n_classes=3)
+    n_classes = 10
+
+    X, y = get_fake_multiclass_data(N_POINTS, N_FEATURES, n_classes, 42)
+    Xtst, ytst = get_fake_multiclass_data(N_POINTS, N_FEATURES, n_classes, 43)
+
+    clf = OVAASGD(n_classes, N_FEATURES, sgd_step_size0=1e-3,
+                  l2_regularization=1e-6, n_iterations=4, dtype=np.float32)
     clf.fit(X, y)
     ytrn_preds = clf.predict(X)
     ytst_preds = clf.predict(Xtst)
     ytrn_acc = (ytrn_preds == y).mean()
     ytst_acc = (ytst_preds == y).mean()
-    assert_equal(ytrn_acc, 0.511)
-    assert_equal(ytst_acc, 0.324)
+    assert_equal(ytrn_acc, 0.364)
+    assert_equal(ytst_acc, 0.116)
 
 
 def test_naive_multiclass_ova_vs_binary_asgd():
-    n_points = 1e3
-    n_features = 1e2
-    X, y = get_fake_multiclass_data(n_points, n_features, 3, 42)
-    Xtst, ytst = get_fake_multiclass_data(n_points, n_features, 3, 43)
-    clf = OVAASGD(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
-                  n_iterations=4, dtype=np.float32, n_classes=3)
-    clf.partial_fit(X, y)
 
-    y0 = 2 * (y == 0).astype(np.int) - 1
-    y1 = 2 * (y == 1).astype(np.int) - 1
-    y2 = 2 * (y == 2).astype(np.int) - 1
+    n_classes = 3
 
-    clf0 = ASGD(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
-               n_iterations=4, dtype=np.float32)
-    clf0.partial_fit(X, y0)
-    clf1 = ASGD(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
-               n_iterations=4, dtype=np.float32)
-    clf1.partial_fit(X, y1)
-    clf2 = ASGD(n_features, sgd_step_size0=1e-3, l2_regularization=1e-6,
-               n_iterations=4, dtype=np.float32)
-    clf2.partial_fit(X, y2)
+    Xtrn, ytrn = get_fake_multiclass_data(N_POINTS, N_FEATURES, n_classes, 42)
+    Xtst, ytst = get_fake_multiclass_data(N_POINTS, N_FEATURES, n_classes, 43)
 
-    m = clf.decision_function(Xtst)
+    args = (N_FEATURES,)
+    kwargs = dict(sgd_step_size0=1e-3,
+                  l2_regularization=1e-6,
+                  n_iterations=4,
+                  dtype=np.float32)
+
+    # -- ground truth 'gt'
+    # emulate OVA with binary asgd classifiers
+    ytrn0 = 2 * (ytrn == 0).astype(np.int) - 1
+    ytrn1 = 2 * (ytrn == 1).astype(np.int) - 1
+    ytrn2 = 2 * (ytrn == 2).astype(np.int) - 1
+
+    clf0 = ASGD(*args, **kwargs)
+    clf0.partial_fit(Xtrn, ytrn0)
+    clf1 = ASGD(*args, **kwargs)
+    clf1.partial_fit(Xtrn, ytrn1)
+    clf2 = ASGD(*args, **kwargs)
+    clf2.partial_fit(Xtrn, ytrn2)
+
     m0 = clf0.decision_function(Xtst)
     m1 = clf1.decision_function(Xtst)
     m2 = clf2.decision_function(Xtst)
 
-    M = np.column_stack([m0, m1, m2])
+    gt = np.column_stack([m0, m1, m2])
 
-    np.testing.assert_allclose(m, M, rtol=RTOL, atol=ATOL)
+    # -- given 'gv'
+    clf = OVAASGD(*((n_classes,) + args), **kwargs)
+    clf.partial_fit(Xtrn, ytrn)
+    gv = clf.decision_function(Xtst)
+
+    assert_allclose(gv, gt, rtol=RTOL, atol=ATOL)

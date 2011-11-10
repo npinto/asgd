@@ -124,9 +124,9 @@ class NaiveBinaryASGD(object):
 
 class NaiveOVAASGD(object):
 
-    def __init__(self, n_features, sgd_step_size0=1e-2, l2_regularization=1e-3,
-                 n_iterations=10, feedback=False, dtype=np.float32,
-                 n_classes=2):
+    def __init__(self, n_classes, n_features, sgd_step_size0=1e-2,
+                 l2_regularization=1e-3, n_iterations=10, feedback=False,
+                 dtype=np.float32):
 
         self.n_classes = n_classes
         self.n_features = n_features
