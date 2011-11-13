@@ -59,7 +59,7 @@ bool test_row_shuffle()
 	}
 }
 
-bool test_partial_fit()
+bool test_partial_fit(double tolerance)
 {
 	float Xd[5][3] = {{1,2,3},{4,5,6},{7,8,9},{10,11,12},{13,14,15}};
 	matrix_t *Xm = matrix_init(5, 3, 0.0f);
@@ -88,7 +88,7 @@ bool test_partial_fit()
 				i, j,
 				out_weights[i][j],
 				matrix_get(clf->sgd_weights, i, j));
-			if(fabs(matrix_get(clf->sgd_weights, i, j) - out_weights[i][j]) > 1e-5)
+			if(fabs(matrix_get(clf->sgd_weights, i, j) - out_weights[i][j]) > tolerance)
 			{
 				res = false;
 			}
@@ -96,13 +96,13 @@ bool test_partial_fit()
 	}
 
 	printf("sgd_bias exp: %f got: %f\n", out_bias[0][0], clf->sgd_bias->data[0]);
-	if (fabs(clf->sgd_bias->data[0] - out_bias[0][0]) > 1e-5)
+	if (fabs(clf->sgd_bias->data[0] - out_bias[0][0]) > tolerance)
 	{
 		res = false;
 	}
 
 	printf("asgd_bias exp: %f got: %f\n", out_bias[0][0], clf->asgd_bias->data[0]);
-	if (fabs(clf->asgd_bias->data[0] - out_bias[0][0]) > 1e-5)
+	if (fabs(clf->asgd_bias->data[0] - out_bias[0][0]) > tolerance)
 	{
 		res = false;
 	}
@@ -124,7 +124,7 @@ bool test_partial_fit()
 	}
 }
 
-bool test_decision_function()
+bool test_decision_function(double tolerance)
 {
 	float Xd[5][3] = {{1,2,3},{4,5,6},{7,8,-9},{10,11,12},{13,14,15}};
 	matrix_t *Xm = matrix_init(5, 3, 0.0f);
@@ -157,7 +157,7 @@ bool test_decision_function()
 			printf("exp: %f got: %f\n",
 				out_r[i][j],
 				matrix_get(rm, i, j));
-			if(fabs(matrix_get(rm, i, j) - out_r[i][j]) > 1e-5)
+			if(fabs(matrix_get(rm, i, j) - out_r[i][j]) > tolerance)
 			{
 				res = false;
 			}
@@ -181,7 +181,7 @@ bool test_decision_function()
 	}
 }
 
-bool test_predict()
+bool test_predict(double tolerance)
 {
 	float in_r[5][5] = {
 		{0.4324, -0.0297, 243.0920, -98389, 8939843},
@@ -209,7 +209,7 @@ bool test_predict()
 			printf("exp: %f got: %f\n",
 				out_r[i][j],
 				matrix_get(mr, i, j));
-			if (fabs(matrix_get(mr, i, j) - out_r[i][j]) > 1e-5)
+			if (fabs(matrix_get(mr, i, j) - out_r[i][j]) > tolerance)
 			{
 				res = false;
 			}
@@ -231,21 +231,22 @@ bool test_predict()
 
 int main(void)
 {
+	double tolerance = 1e-5;
 	int res = true;
 	res &= test_swap();
 	res &= test_row_shuffle();
-	res &= test_decision_function();
-	res &= test_predict();
-	res &= test_partial_fit();
+	res &= test_decision_function(tolerance);
+	res &= test_predict(tolerance);
+	res &= test_partial_fit(tolerance);
 
 	if (res)
 	{
-		fprintf(stderr, "test passed\n");
+		printf("test passed\n");
 		return EXIT_SUCCESS;
 	}
 	else
 	{
-		fprintf(stderr, "test failed\n");
+		printf("test failed\n");
 		return EXIT_FAILURE;
 	}
 }

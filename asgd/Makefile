@@ -14,11 +14,14 @@ ifeq ($(TYPE),blas)
 LTYPE = -DASGD_BLAS
 endif
 ifeq ($(TYPE),)
-LTYPE =
+LTYPE = simple_blas.c
 endif
 
-asgd_unit: tests/asgd_unit.c asgd.c
-	$(CC) $(CFLAGS) $(DEBUG) $(LTYPE) $(INCDIR) $(LIBDIR) $(LIB) -o bin/asgd_unit tests/asgd_unit.c asgd.c
+asgd_unit: tests/asgd_unit.c asgd.c simple_blas.c
+	$(CC) $(CFLAGS) $(DEBUG) $(INCDIR) $(LIBDIR) $(LIB) -o bin/asgd_unit $(LTYPE) tests/asgd_unit.c asgd.c
+
+simple_blas_unit: tests/simple_blas_unit.c simple_blas.c
+	$(CC) $(CFLAGS) $(DEBUG) $(INCDIR) $(LIBDIR) $(LIB) -o bin/simple_blas_unit tests/simple_blas_unit.c simple_blas.c
 
 # clean up the compilation byproducts
 .PHONY: clean
