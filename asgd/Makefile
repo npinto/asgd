@@ -6,6 +6,11 @@ LIB = -lm -lcblas
 INCDIR = -I/usr/include/
 LIBDIR = -L/usr/lib64/atlas
 
+CYTHON = cython
+PFLAGS = $(CFLAGS) -pthread -fPIC -fwrapv -fno-strict-aliasing
+PINCDIR = $(INCDIR) -I/usr/include/python2.7
+PLIBDIR = $(LIBDIR)
+
 # decide which library to use for the linear algebra
 ifeq ($(TYPE),sse)
 LTYPE = -DASGD_SSE
@@ -16,6 +21,10 @@ endif
 ifeq ($(TYPE),)
 LTYPE = simple_blas.c
 endif
+
+python_lib: pasgd.pyx asgd.c
+	$(CYTHON) pasgd.pyx
+	$(CC) -shared $(PFLAGS) $(DEBUG) $(INCDIR) $(PINCDIR) $(LIBDIR) $(LIB) -o pasgd.o $(LTYPE) pasgd.c asgd.c
 
 asgd_unit: tests/asgd_unit.c asgd.c simple_blas.c
 	$(CC) $(CFLAGS) $(DEBUG) $(INCDIR) $(LIBDIR) $(LIB) -o bin/asgd_unit $(LTYPE) tests/asgd_unit.c asgd.c
