@@ -27,7 +27,7 @@ class BaseASGD(object):
         assert n_features > 1
         self.n_features = n_features
 
-        assert n_iterations > 1
+        assert n_iterations > 0
         self.n_iterations = n_iterations
 
         self.feedback = feedback
