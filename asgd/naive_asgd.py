@@ -133,7 +133,7 @@ class NaiveMulticlassASGD(object):
         self.n_iterations = n_iterations
         self.feedback = feedback
 
-        assert l2_regularization > 0
+        assert l2_regularization >= 0, l2_regularization
         self.l2_regularization = l2_regularization
         self.dtype = dtype
 
