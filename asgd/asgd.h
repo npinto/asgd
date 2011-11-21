@@ -26,7 +26,7 @@ matrix_t *matrix_clone(matrix_t *m);
 
 void matrix_swap(matrix_t *m, size_t j, size_t k, size_t x, size_t y);
 
-void matrix_row_shuffle(matrix_t *m);
+void matrix_row_shuffle(matrix_t *m, int *r);
 
 float matrix_get(matrix_t *m, size_t i, size_t j);
 
@@ -70,13 +70,13 @@ nb_asgd_t *nb_asgd_init(
 void nb_asgd_destr(
 		nb_asgd_t *data);
 
-void fit(nb_asgd_t *data, matrix_t *X, matrix_t *y);
+void fit(nb_asgd_t *data, matrix_t *X, matrix_t *y, int *r);
 
 void partial_fit(nb_asgd_t *data, matrix_t *X, matrix_t *y);
 
 void decision_function(nb_asgd_t *data, matrix_t *X, matrix_t *r);
 
-void predict(matrix_t *r);
+void predict(nb_asgd_t *data, matrix_t *X, matrix_t *r);
 
 
 #endif

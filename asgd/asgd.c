@@ -89,12 +89,14 @@ void mex_assert(bool cond, const char *mex)
 	}
 }
 
-void matrix_row_shuffle(matrix_t *m)
+/**
+ * @param r As many random integers (any integer value) as the # of rows - 1
+ */
+void matrix_row_shuffle(matrix_t *m, int *r)
 {
 	// do a Durstenfeld shuffle
-	srand(time(NULL));
 	for (size_t i = m->rows-1; i > 0; --i) {
-		size_t j = rand() % (i+1);
+		size_t j = r[i-1] % (i+1);
 		// flip current row with a random row among remaining ones
 		for (size_t k = 0; k < m->cols; ++k) {
 			matrix_swap(m, i, k, j, k);
@@ -220,7 +222,8 @@ void partial_fit(
 void fit(
 	nb_asgd_t *data,
 	matrix_t *X,
-	matrix_t *y)
+	matrix_t *y,
+	int *r)
 {
 	mex_assert(X->rows > 1, "fit: X should be a matrix");
 	mex_assert(y->cols == 1, "fit: y should be a column vector");
@@ -228,9 +231,9 @@ void fit(
 	for (uint64_t i = 0; i < data->n_iters; ++i)
 	{
 		matrix_t *Xb = matrix_clone(X);
-		matrix_row_shuffle(Xb);
+		matrix_row_shuffle(Xb, r+i*Xb->rows);
 		matrix_t *yb = matrix_clone(y);
-		matrix_row_shuffle(yb);
+		matrix_row_shuffle(yb, r+i*Xb->rows);
 		partial_fit(data, Xb, yb);
 		matrix_destr(Xb);
 		matrix_destr(yb);
@@ -269,8 +272,12 @@ void decision_function(
 
 
 void predict(
+	nb_asgd_t *data,
+	matrix_t *X,
 	matrix_t *r)
 {
+	decision_function(data, X, r);
+
 	for (size_t i = 0; i < r->rows; ++i)
 	{
 		for (size_t j = 0; j < r->cols; ++j)

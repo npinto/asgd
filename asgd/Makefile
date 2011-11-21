@@ -22,9 +22,9 @@ ifeq ($(TYPE),)
 LTYPE = simple_blas.c
 endif
 
-python_lib: pasgd.pyx asgd.c
+python_lib: pasgd.pyx asgd.c simple_blas.c
 	$(CYTHON) pasgd.pyx
-	$(CC) -shared $(PFLAGS) $(DEBUG) $(INCDIR) $(PINCDIR) $(LIBDIR) $(LIB) -o pasgd.o $(LTYPE) pasgd.c asgd.c
+	$(CC) -shared $(PFLAGS) $(DEBUG) $(INCDIR) $(PINCDIR) $(LIBDIR) $(LIB) -o pasgd.so $(LTYPE) pasgd.c asgd.c
 
 asgd_unit: tests/asgd_unit.c asgd.c simple_blas.c
 	$(CC) $(CFLAGS) $(DEBUG) $(INCDIR) $(LIBDIR) $(LIB) -o bin/asgd_unit $(LTYPE) tests/asgd_unit.c asgd.c
