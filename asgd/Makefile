@@ -8,7 +8,7 @@ LIBDIR = -L/usr/lib64/atlas
 
 CYTHON = cython
 PFLAGS = $(CFLAGS) -pthread -fPIC -fwrapv -fno-strict-aliasing
-PINCDIR = $(INCDIR) -I/usr/include/python2.7
+PINCDIR = $(INCDIR) -I/usr/include/python2.7 -I/usr/lib64/python2.7/site-packages/numpy/core/include
 PLIBDIR = $(LIBDIR)
 
 # decide which library to use for the linear algebra
