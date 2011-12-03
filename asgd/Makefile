@@ -1,39 +1,40 @@
 CC = gcc
 DEBUG = -g
-CFLAGS = -Wall -std=c99
+CFLAGS = -Wall -std=c99 -fPIC
 
-LIB = -lm -lcblas
 INCDIR = -I/usr/include/
 LIBDIR = -L/usr/lib64/atlas
 
-CYTHON = cython
-PFLAGS = $(CFLAGS) -pthread -fPIC -fwrapv -fno-strict-aliasing
-PINCDIR = $(INCDIR) -I/usr/include/python2.7 -I/usr/lib64/python2.7/site-packages/numpy/core/include
-PLIBDIR = $(LIBDIR)
-
-# decide which library to use for the linear algebra
-ifeq ($(TYPE),sse)
-LTYPE = -DASGD_SSE
-endif
 ifeq ($(TYPE),blas)
-LTYPE = -DASGD_BLAS
+LIBS = -lm -lcblas
+DEFS = -DASGD_BLAS
+OBJS = 
+else
+LIBS = -lm
+DEFS = 
+OBJS = simple_blas.o
 endif
-ifeq ($(TYPE),)
-LTYPE = simple_blas.c
-endif
 
-python_lib: pasgd.pyx asgd.c simple_blas.c
-	$(CYTHON) pasgd.pyx
-	$(CC) -shared $(PFLAGS) $(DEBUG) $(INCDIR) $(PINCDIR) $(LIBDIR) $(LIB) -o pasgd.so $(LTYPE) pasgd.c asgd.c
+asgd_unit: asgd.o asgd_core.o simple_blas.o tests/asgd_unit.c
+	$(CC) $(CFLAGS) $(DEBUG) $(INCDIR) $(LIBDIR) $(LIBS) $(DEFS) -o bin/asgd_unit $(OBJS) asgd.o asgd_core.o tests/asgd_unit.c
 
-asgd_unit: tests/asgd_unit.c asgd.c simple_blas.c
-	$(CC) $(CFLAGS) $(DEBUG) $(INCDIR) $(LIBDIR) $(LIB) -o bin/asgd_unit $(LTYPE) tests/asgd_unit.c asgd.c
+asgd.o: simple_blas.o asgd_core.o asgd.c asgd.h
+	$(CC) $(CFLAGS) $(DEBUG) $(INCDIR) $(LIBDIR) $(LIBS) $(DEFS) -c -o asgd.o asgd.c
 
-simple_blas_unit: tests/simple_blas_unit.c simple_blas.c
-	$(CC) $(CFLAGS) $(DEBUG) $(INCDIR) $(LIBDIR) $(LIB) -o bin/simple_blas_unit tests/simple_blas_unit.c simple_blas.c
+asgd_core.o: simple_blas.o asgd_core.c asgd_core.h
+	$(CC) $(CFLAGS) $(DEBUG) $(INCDIR) $(LIBDIR) $(LIBS) $(DEFS) -c -o asgd_core.o asgd_core.c
+	$(CC) -shared $(CFLAGS) $(DEBUG) $(INCDIR) $(LIBDIR) $(LIBS) $(DEFS) -o asgd_core.so $(OBJS) asgd_core.c
 
-# clean up the compilation byproducts
+simple_blas_unit: simple_blas.c simple_blas.h tests/simple_blas_unit.c
+	$(CC) $(CFLAGS) $(DEBUG) $(INCDIR) $(LIBDIR) $(LIBS) $(DEFS) -o bin/simple_blas_unit tests/simple_blas_unit.c
+
+simple_blas.o: simple_blas.c simple_blas.h
+	$(CC) $(CFLAGS) $(DEBUG) $(INCDIR) $(LIBDIR) $(LIBS) $(DEFS) -c -o simple_blas.o simple_blas.c
+
+# clean up compilation byproducts
 .PHONY: clean
 clean:
 	rm -fR *.o
+	rm -fR *.so
 	rm -f bin/asgd_unit
+	rm -f bin/simple_blas_unit

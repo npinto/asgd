@@ -57,14 +57,14 @@ struct nb_asgd
 	float asgd_step_size;
 	float asgd_step_size0;
 
-	uint64_t n_observs;
+	long n_observs;
 };
 
 nb_asgd_t *nb_asgd_init(
-	uint64_t n_feats,
+	long n_feats,
 	float sgd_step_size0,
 	float l2_reg,
-	uint64_t n_iters,
+	long n_iters,
 	bool feedback);
 
 void nb_asgd_destr(

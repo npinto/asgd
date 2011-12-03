@@ -1,12 +1,7 @@
 #include "asgd.h"
 
-#if defined ASGD_BLAS
-#include <cblas.h>
-#elif defined ASGD_SSE
-#include "sse_blas.h"
-#else
-#include "simple_blas.h"
-#endif
+#include "asgd_blas.h"
+#include "asgd_core.h"
 
 matrix_t *matrix_init(
 		size_t rows,
@@ -108,10 +103,10 @@ void matrix_row_shuffle(matrix_t *m, int *r)
  * Constructor for the Binary ASGD structure
  */
 nb_asgd_t *nb_asgd_init(
-	uint64_t n_feats,
+	long n_feats,
 	float sgd_step_size0,
 	float l2_reg,
-	uint64_t n_iters,
+	long n_iters,
 	bool feedback)
 {
 	nb_asgd_t *data = malloc(sizeof(*data));
@@ -158,65 +153,39 @@ void partial_fit(
 		matrix_t *X,
 		matrix_t *y)
 {
+	core_partial_fit(
+			&data->n_observs,
+			&data->sgd_step_size,
+			&data->asgd_step_size,
+			
+			data->l2_reg,
+			data->sgd_step_size0,
+			data->sgd_step_size_scheduling_exp,
+			data->sgd_step_size_scheduling_mul,
+			
+			data->sgd_weights->data,
+			data->sgd_weights->rows,
+			data->sgd_weights->cols,
 
-	for (size_t i = 0; i < X->rows; ++i) {
+			data->sgd_bias->data,
+			data->sgd_bias->rows,
+			data->sgd_bias->cols,
 
-		// compute margin //
-		// TODO sgd_weights will become a matrix
-		// notice that each row in X is also a column because of the stride
-		float margin = matrix_get(y, i, 0) * 
-			cblas_sdsdot(
-				X->cols,
-				matrix_get(data->sgd_bias, 0, 0),
-				matrix_row(X, i), 1,
-				data->sgd_weights->data, 1);
+			data->asgd_weights->data,
+			data->asgd_weights->rows,
+			data->asgd_weights->cols,
 
-		// update sgd //
-		if (data->l2_reg != 0)
-		{
-			// TODO sgd_weights will become a matrix
-			cblas_sscal(data->sgd_weights->rows,
-					1 - data->l2_reg * data->sgd_step_size,
-					data->sgd_weights->data, 1);
-		}
+			data->asgd_bias->data,
+			data->asgd_bias->rows,
+			data->asgd_bias->cols,
 
-		if (margin < 1)
-		{
-			// TODO sgd_weights will become a matrix
-			// TODO may be faster to leave sgd_weights on the stack
-			cblas_saxpy(
-					data->sgd_weights->rows, 
-					data->sgd_step_size * matrix_get(y, i, 0),
-					matrix_row(X, i), 1,
-					data->sgd_weights->data, 1);
+			X->data,
+			X->rows,
+			X->cols,
 
-			// TODO sgd_bias will become a vector
-			matrix_set(data->sgd_bias, 0, 0,
-					data->sgd_step_size * matrix_get(y, i, 0));
-		}
-
-		// update asgd //
-		//matrix_t *asgd_weights = matrix_clone(data->asgd_weights);
-		cblas_sscal(data->asgd_weights->rows,
-				1 - data->asgd_step_size,
-				data->asgd_weights->data, 1);
-		cblas_saxpy(data->asgd_weights->rows,
-				data->asgd_step_size,
-				data->sgd_weights->data, 1,
-				data->asgd_weights->data, 1);
-
-		matrix_set(data->asgd_bias, 0, 0,
-				(1 - data->asgd_step_size) * matrix_get(data->asgd_bias, 0, 0) +
-				data->asgd_step_size * matrix_get(data->sgd_bias, 0, 0));
-
-		// update step_sizes //
-		data->n_observs += 1;
-		float sgd_step_size_scheduling = 1 + data->sgd_step_size0 * data->n_observs
-			* data->sgd_step_size_scheduling_mul;
-		data->sgd_step_size = data->sgd_step_size0 /
-			pow(sgd_step_size_scheduling, data->sgd_step_size_scheduling_exp);
-		data->asgd_step_size = 1.0f / data->n_observs;
-	}
+			y->data,
+			y->rows,
+			y->cols);
 }
 
 void fit(
@@ -228,7 +197,7 @@ void fit(
 	mex_assert(X->rows > 1, "fit: X should be a matrix");
 	mex_assert(y->cols == 1, "fit: y should be a column vector");
 
-	for (uint64_t i = 0; i < data->n_iters; ++i)
+	for (long i = 0; i < data->n_iters; ++i)
 	{
 		matrix_t *Xb = matrix_clone(X);
 		matrix_row_shuffle(Xb, r+i*Xb->rows);
