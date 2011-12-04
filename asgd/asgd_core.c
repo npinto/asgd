@@ -4,6 +4,23 @@
 
 #include "asgd_blas.h"
 
+#include <stdio.h>
+
+static void prt(float *x, size_t x_rows, size_t x_cols)
+{
+	FILE *f = fopen("out.txt", "a");
+	for (long j=0; j<x_rows; ++j)
+	{
+		for (long k=0; k<x_cols; ++k)
+		{
+			fprintf(f, "%f ", x[j*x_cols+k]);
+		}
+		fprintf(f, "\n");
+	}
+	fprintf(f, "\n");
+	fclose(f);
+}
+
 void core_partial_fit(
 		long *n_observs,
 		float *sgd_step_size,
@@ -38,7 +55,9 @@ void core_partial_fit(
 		size_t y_rows,
 		size_t y_cols)
 {
-
+	//prt(X, X_rows, X_cols);
+	//prt(y, y_rows, y_cols);
+	
 	for (size_t i = 0; i < X_rows; ++i) {
 
 		// compute margin //
@@ -52,7 +71,7 @@ void core_partial_fit(
 				sgd_weights, 1);
 
 		// update sgd //
-		if (l2_reg != 0)
+		if (l2_reg != 0.f)
 		{
 			// TODO sgd_weights will become a matrix
 			cblas_sscal(sgd_weights_rows,
@@ -63,7 +82,6 @@ void core_partial_fit(
 		if (margin < 1)
 		{
 			// TODO sgd_weights will become a matrix
-			// TODO may be faster to leave sgd_weights on the stack
 			cblas_saxpy(
 					sgd_weights_rows, 
 					*sgd_step_size * y[y_cols*i],
@@ -71,7 +89,7 @@ void core_partial_fit(
 					sgd_weights, 1);
 
 			// TODO sgd_bias will become a vector
-			sgd_bias[0] = *sgd_step_size * y[y_cols*i];
+			sgd_bias[0] += *sgd_step_size * y[y_cols*i];
 		}
 
 		// update asgd //

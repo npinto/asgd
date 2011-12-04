@@ -1,2 +1,3 @@
 from naive_asgd import NaiveBinaryASGD
 from experimental_asgd import ExperimentalBinaryASGD
+from casgd import CASGD
