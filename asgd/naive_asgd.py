@@ -30,6 +30,8 @@ class BaseASGD(object):
         assert n_iterations > 0
         self.n_iterations = n_iterations
 
+        if feedback:
+            raise NotImplementedError("FIXME: feedback support is buggy")
         self.feedback = feedback
 
         if rstate is None:
