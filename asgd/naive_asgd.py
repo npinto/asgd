@@ -13,6 +13,11 @@ DEFAULT_N_ITERATIONS = 10
 DEFAULT_FEEDBACK = False
 DEFAULT_RSTATE = None
 DEFAULT_DTYPE = np.float32
+DEFAULT_SGD_EXPONENT = 2.0 / 3.0
+DEFAULT_SGD_TIMESCALE = 'l2_regularization' # can be 'l2_regularization' or float
+# this timescale default comes from
+# http://www.dbs.ifi.lmu.de/~yu_k/cvpr11_0694.pdf, in which is introduced as a
+# heuristic.
 
 
 class BaseASGD(object):
@@ -20,8 +25,12 @@ class BaseASGD(object):
     def __init__(self, n_features,
                  sgd_step_size0=DEFAULT_SGD_STEP_SIZE0,
                  l2_regularization=DEFAULT_L2_REGULARIZATION,
-                 n_iterations=DEFAULT_N_ITERATIONS, feedback=DEFAULT_FEEDBACK,
-                 rstate=DEFAULT_RSTATE, dtype=DEFAULT_DTYPE):
+                 n_iterations=DEFAULT_N_ITERATIONS,
+                 feedback=DEFAULT_FEEDBACK,
+                 rstate=DEFAULT_RSTATE,
+                 dtype=DEFAULT_DTYPE,
+                 sgd_step_size_scheduling_exponent = DEFAULT_SGD_EXPONENT,
+                 sgd_step_size_scheduling_multiplier = DEFAULT_SGD_TIMESCALE):
 
         # --
         assert n_features > 1
@@ -38,15 +47,19 @@ class BaseASGD(object):
             rstate = np.random.RandomState()
         self.rstate = rstate
 
-        assert l2_regularization > 0
         self.l2_regularization = l2_regularization
         self.dtype = dtype
 
         # --
         self.sgd_step_size0 = sgd_step_size0
         self.sgd_step_size = sgd_step_size0
-        self.sgd_step_size_scheduling_exponent = 2. / 3
-        self.sgd_step_size_scheduling_multiplier = l2_regularization
+        self.sgd_step_size_scheduling_exponent = \
+            sgd_step_size_scheduling_exponent
+        if sgd_step_size_scheduling_multiplier == 'l2_regularization':
+            self.sgd_step_size_scheduling_multiplier = l2_regularization
+        else:
+            self.sgd_step_size_scheduling_multiplier = \
+                    sgd_step_size_scheduling_multiplier
 
         self.asgd_step_size0 = 1
         self.asgd_step_size = self.asgd_step_size0
