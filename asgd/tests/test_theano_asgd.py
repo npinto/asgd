@@ -90,27 +90,28 @@ def test_theano_binary_asgd_converges_to_truth():
 
 def run_theano_binary_asgd_speed():
 
-    rstate = RandomState(42)
+    for N_FEATURES in 100, 1000, 10000:
 
-    N_FEATURES = 10000
+        rstate = RandomState(42)
 
-    X, y = get_fake_data(N_POINTS, N_FEATURES, rstate)
-    Xtst, ytst = get_fake_data(N_POINTS, N_FEATURES, rstate)
+        X, y = get_fake_data(N_POINTS, N_FEATURES, rstate)
+        Xtst, ytst = get_fake_data(N_POINTS, N_FEATURES, rstate)
 
-    kwargs = dict(DEFAULT_KWARGS)
-    kwargs['n_iterations'] = 10
-    kwargs['dtype'] = 'float32'
+        kwargs = dict(DEFAULT_KWARGS)
+        kwargs['n_iterations'] = 10
+        kwargs['dtype'] = 'float32'
 
-    clf0 = NaiveBinaryASGD(N_FEATURES, rstate=copy(rstate), **DEFAULT_KWARGS)
-    clf1 = TheanoBinaryASGD(N_FEATURES, rstate=copy(rstate), **DEFAULT_KWARGS)
-    clf1.compile_train_fn_2()
+        clf0 = NaiveBinaryASGD(N_FEATURES, rstate=copy(rstate), **DEFAULT_KWARGS)
+        clf1 = TheanoBinaryASGD(N_FEATURES, rstate=copy(rstate), **DEFAULT_KWARGS)
+        clf1.compile_train_fn_2()
 
-    t = time.time()
-    clf0.fit(X, y)
-    t0 = time.time() - t
+        t = time.time()
+        clf0.fit(X, y)
+        t0 = time.time() - t
 
-    t = time.time()
-    clf1.fit(X, y)
-    t1 = time.time() - t
-    print 'TIMES', 'Naive', t0, 'Theano', t1
+        t = time.time()
+        clf1.fit(X, y)
+        t1 = time.time() - t
+        print '%i Naive:%.3f  Theano:%.3f' % (
+                N_FEATURES, t0, t1)
 

@@ -106,7 +106,9 @@ class TheanoBinaryASGD(BaseASGD):
         sgd_step_size = (sgd_step_size0 /
                 (sgd_n ** sgd_step_size_scheduling_exponent))
 
-        margin = label * (tensor.dot(obs, sgd_weights) + sgd_bias)
+        # Use tensor.dot once the PR for the inner() optimization goes through
+        # margin = label * (tensor.dot(obs, sgd_weights) + sgd_bias)
+        margin = label * ((obs * sgd_weights).sum() + sgd_bias)
         regularized_sgd_weights = sgd_weights * tensor.cast(
                 1 - l2_regularization * sgd_step_size,
                 sgd_weights.dtype)
