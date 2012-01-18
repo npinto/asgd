@@ -14,10 +14,12 @@ DEFAULT_FEEDBACK = False
 DEFAULT_RSTATE = None
 DEFAULT_DTYPE = np.float32
 DEFAULT_SGD_EXPONENT = 2.0 / 3.0
-DEFAULT_SGD_TIMESCALE = 'l2_regularization' # can be 'l2_regularization' or float
-# this timescale default comes from
-# http://www.dbs.ifi.lmu.de/~yu_k/cvpr11_0694.pdf, in which is introduced as a
+DEFAULT_SGD_TIMESCALE = 'l2_regularization'
+# can be 'l2_regularization' or float
+# This timescale default comes from [1] in which it is introduced as a
 # heuristic.
+# [1] http://www.dbs.ifi.lmu.de/~yu_k/cvpr11_0694.pdf
+# Update: it is also recommended in Leon Bottou's SvmAsgd software.
 
 
 class BaseASGD(object):
@@ -67,7 +69,86 @@ class BaseASGD(object):
         self.n_observations = 0
 
 
-class NaiveBinaryASGD(BaseASGD):
+class DetermineStepSizeMixin(object):
+    """
+    Implements the automatic step-size selection logic from
+    http://leon.bottou.org/projects/sgd
+
+
+    This mixin requires the host class to have
+
+    self.partial_fit(X, y)
+    self.n_observations
+    self.sgd_step_size0
+    self.sgd_weights
+    self.sgd_bias
+    self.asgd_weights
+    self.asgd_bias
+
+    """
+
+    n_examples_for_determining_step_size = 1000
+    verbose = 0
+
+    def determine_sgd_step_size0(self, X, y, base=1.0, factor=2.0):
+        # trim X and y down to at most 1000 examples
+        def show(msg):
+            print(msg)
+            pass
+        X = X[:self.n_examples_for_determining_step_size]
+        y = y[:self.n_examples_for_determining_step_size]
+        lo_step_size0 = base
+        lo_cost = self.evaluate_step_size(X, y, lo_step_size0)
+        show('determine_sgd_step_size0: lo_cost = %f' % lo_cost)
+        hi_step_size0 = base * factor
+        hi_cost = self.evaluate_step_size(X, y, hi_step_size0)
+        show('determine_sgd_step_size0: hi_cost = %f' % hi_cost)
+        if lo_cost < hi_cost:
+            # do a geometric search toward 0 for bottom of curve
+            while lo_cost + 1e-4 < hi_cost:
+                # bring down hi_step_size0
+                hi_step_size0 = lo_step_size0
+                hi_cost = lo_cost
+                lo_step_size0 = hi_step_size0 / factor
+                lo_cost = self.evaluate_step_size(X, y, lo_step_size0);
+                show('determine_sgd_step_size0: lo_size0 = %f, lo_cost = %f' %
+                        (lo_step_size0, lo_cost))
+        elif hi_cost < lo_cost:
+            while hi_cost + 1e-4 < lo_cost:
+                # bring up lo_step_size0
+                lo_step_size0 = hi_step_size0
+                lo_cost = hi_cost
+                hi_step_size0 = lo_step_size0 * factor
+                hi_cost = self.evaluate_step_size(X, y, hi_step_size0)
+                show('determine_sgd_step_size0: hi_size0 = %f, hi_cost = %f' %
+                        (hi_step_size0, hi_cost))
+        self.reset()
+        show('determine_sgd_step_size0: final step size %f' %
+                lo_step_size0)
+        self.sgd_step_size0 = lo_step_size0
+
+    def reset(self):
+        self.n_observations = 0
+        self.asgd_weights = self.asgd_weights * 0
+        self.asgd_bias = self.asgd_bias * 0
+        self.sgd_weights = self.sgd_weights * 0
+        self.sgd_bias = self.sgd_bias * 0
+
+    def evaluate_step_size(self, X, y, sgd_step_size0):
+        self.reset()
+        self.sgd_step_size0 = sgd_step_size0
+        self.partial_fit(X, y)
+        # XXX: hack - asgd is lower variance than sgd, but it's tuned to work
+        #             well asymptotically, not after just a few examples
+        weights = .5 * self.asgd_weights + .5 * self.sgd_weights
+        bias = .5 * self.asgd_bias + .5 * self.sgd_bias
+        margin = y * (dot(X, weights) + bias)
+        l2_cost = self.l2_regularization * (weights ** 2).sum()
+        cost = np.maximum(0, 1 - margin) + l2_cost
+        return cost.mean()
+
+
+class NaiveBinaryASGD(BaseASGD, DetermineStepSizeMixin):
 
     def __init__(self, n_features, sgd_step_size0=DEFAULT_SGD_STEP_SIZE0,
                  l2_regularization=DEFAULT_L2_REGULARIZATION,
