@@ -67,13 +67,20 @@ class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
             sgd_step_size_scheduling_exponent=DEFAULT_SGD_EXPONENT,
             sgd_step_size_scheduling_multiplier=DEFAULT_SGD_TIMESCALE):
 
-        self.s_n_observations = theano.shared(np.asarray(0).astype('int64'))
+        self.s_n_observations = theano.shared(
+                np.asarray(0).astype('int64'),
+                name='n_observations',
+                allow_downcast=True)
 
-        self.s_sgd_step_size0 = theano.shared(np.asarray(0).astype(dtype))
+        self.s_sgd_step_size0 = theano.shared(
+                np.asarray(0).astype(dtype),
+                name='sgd_step_size0',
+                allow_downcast=True)
 
         self.s_sgd_weights = theano.shared(
                 np.zeros((n_features), dtype=dtype),
-                name='sgd_weights')
+                name='sgd_weights',
+                allow_downcast=True)
 
         self.s_sgd_bias = theano.shared(
                 np.asarray(0, dtype=dtype),
