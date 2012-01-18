@@ -169,3 +169,17 @@ def test_naive_ova_asgd_wrong_labels():
                   rstate=RandomState(999), **DEFAULT_KWARGS)
     ytrn_bad = rstate.randint(n_classes + 42, size=len(ytrn))
     clf.partial_fit(Xtrn, ytrn_bad)
+
+
+def test_determine_stepsize_mixin():
+    rstate = RandomState(42)
+
+    X, y = get_fake_data(N_POINTS, N_FEATURES, rstate)
+    Xtst, ytst = get_fake_data(N_POINTS, N_FEATURES, rstate)
+
+    clf = BinaryASGD(*DEFAULT_ARGS, rstate=rstate, **DEFAULT_KWARGS)
+
+    clf.determine_sgd_step_size0(X, y)
+
+    assert_allclose(clf.sgd_step_size0, 0.00390625)
+

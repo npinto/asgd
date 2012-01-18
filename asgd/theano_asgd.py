@@ -3,6 +3,7 @@ import numpy as np
 from itertools import izip
 
 from naive_asgd import BaseASGD
+from naive_asgd import DetermineStepSizeMixin
 
 from naive_asgd import (
         DEFAULT_SGD_STEP_SIZE0,
@@ -18,7 +19,8 @@ import theano
 import theano.ifelse
 import theano.tensor as tensor
 
-class TheanoBinaryASGD(BaseASGD):
+
+class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
 
     """
     Notes regarding speed:

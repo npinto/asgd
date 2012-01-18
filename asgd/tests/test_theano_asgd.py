@@ -52,6 +52,11 @@ def test_theano_binary_asgd_converges_to_truth():
 
     true_weights = rstate.randn(n_features)
     true_bias = rstate.randn() * 0
+    def draw_data(N=20):
+        X = rstate.randn(N, 5)
+        labels = np.sign(np.dot(X, true_weights) + true_bias).astype('int')
+        return X, labels
+
     clf = TheanoBinaryASGD(n_features,
             rstate=rstate,
             sgd_step_size0=0.1,
@@ -60,14 +65,14 @@ def test_theano_binary_asgd_converges_to_truth():
             sgd_step_size_scheduling_exponent=0.5,
             sgd_step_size_scheduling_multiplier=1.0)
 
-    Tmax = 300
+    clf.determine_sgd_step_size0(*draw_data(200))
 
+    Tmax = 300
     eweights = np.zeros(Tmax)
     ebias = np.zeros(Tmax)
 
     for i in xrange(Tmax):
-        X = rstate.randn(20, 5)
-        labels = np.sign(np.dot(X, true_weights) + true_bias).astype('int')
+        X, labels = draw_data()
         # toss in some noise
         labels[0:3] = -1
         labels[3:6] = 1
