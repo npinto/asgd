@@ -61,7 +61,6 @@ class BaseASGD(object):
 
         # --
         self.sgd_step_size0 = sgd_step_size0
-        self.sgd_step_size = sgd_step_size0
         self.sgd_step_size_scheduling_exponent = \
             sgd_step_size_scheduling_exponent
         if sgd_step_size_scheduling_multiplier == 'l2_regularization':
