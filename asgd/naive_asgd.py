@@ -23,6 +23,11 @@ DEFAULT_SGD_TIMESCALE = 'l2_regularization'
 
 
 class BaseASGD(object):
+    """
+    XXX
+    """
+
+    min_n_iterations = 5
 
     def __init__(self, n_features,
                  sgd_step_size0=DEFAULT_SGD_STEP_SIZE0,
@@ -40,6 +45,8 @@ class BaseASGD(object):
 
         assert n_iterations > 0
         self.n_iterations = n_iterations
+
+        self.min_n_iterations = min(n_iterations, self.min_n_iterations)
 
         if feedback:
             raise NotImplementedError("FIXME: feedback support is buggy")
@@ -62,11 +69,28 @@ class BaseASGD(object):
         else:
             self.sgd_step_size_scheduling_multiplier = \
                     sgd_step_size_scheduling_multiplier
+        self.__reset()  # don't call sub-class reset yet
 
+    def __reset(self):
+        """
+        Reset this object to the initial state before fitting.
+        """
+        self.n_observations = 0
         self.asgd_step_size0 = 1
         self.asgd_step_size = self.asgd_step_size0
+        self.sgd_step_size = self.sgd_step_size0
+        self.train_means = []
 
-        self.n_observations = 0
+    def reset(self):
+        return self.__reset()
+
+    def fit_converged(self):
+        train_means = self.train_means
+        if len(train_means) >= self.min_n_iterations:
+            midpt = len(train_means) // 2
+            if train_means[-1] > .99 * train_means[midpt]:
+                return True
+        return False
 
 
 class DetermineStepSizeMixin(object):
@@ -127,13 +151,6 @@ class DetermineStepSizeMixin(object):
                 lo_step_size0)
         self.sgd_step_size0 = lo_step_size0
 
-    def reset(self):
-        self.n_observations = 0
-        self.asgd_weights = self.asgd_weights * 0
-        self.asgd_bias = self.asgd_bias * 0
-        self.sgd_weights = self.sgd_weights * 0
-        self.sgd_bias = self.sgd_bias * 0
-
     def evaluate_step_size(self, X, y, sgd_step_size0):
         self.reset()
         self.sgd_step_size0 = sgd_step_size0
@@ -149,6 +166,9 @@ class DetermineStepSizeMixin(object):
 
 
 class NaiveBinaryASGD(BaseASGD, DetermineStepSizeMixin):
+    """
+    XXX
+    """
 
     def __init__(self, n_features, sgd_step_size0=DEFAULT_SGD_STEP_SIZE0,
                  l2_regularization=DEFAULT_L2_REGULARIZATION,
@@ -191,6 +211,8 @@ class NaiveBinaryASGD(BaseASGD, DetermineStepSizeMixin):
 
         n_observations = self.n_observations
 
+        costs = []
+
         for obs, label in izip(X, y):
 
             # -- compute margin
@@ -204,6 +226,9 @@ class NaiveBinaryASGD(BaseASGD, DetermineStepSizeMixin):
 
                 sgd_weights += sgd_step_size * label * obs
                 sgd_bias += sgd_step_size * label
+                costs.append(1 - float(margin))
+            else:
+                costs.append(0)
 
             # -- update asgd
             asgd_weights = (1 - asgd_step_size) * asgd_weights \
@@ -231,6 +256,9 @@ class NaiveBinaryASGD(BaseASGD, DetermineStepSizeMixin):
 
         self.n_observations = n_observations
 
+        self.train_means.append(np.mean(costs)
+                + self.l2_regularization * (self.asgd_weights ** 2).sum())
+
         return self
 
     def fit(self, X, y):
@@ -255,6 +283,9 @@ class NaiveBinaryASGD(BaseASGD, DetermineStepSizeMixin):
                 self.sgd_weights = self.asgd_weights
                 self.sgd_bias = self.asgd_bias
 
+            if self.fit_converged():
+                break
+
         return self
 
     def decision_function(self, X):
@@ -263,8 +294,18 @@ class NaiveBinaryASGD(BaseASGD, DetermineStepSizeMixin):
     def predict(self, X):
         return np.sign(self.decision_function(X))
 
+    def reset(self):
+        BaseASGD.reset(self)
+        self.asgd_weights = self.asgd_weights * 0
+        self.asgd_bias = self.asgd_bias * 0
+        self.sgd_weights = self.sgd_weights * 0
+        self.sgd_bias = self.sgd_bias * 0
+
 
 class NaiveOVAASGD(BaseASGD):
+    """
+    XXX
+    """
 
     def __init__(self, n_classes, n_features,
                  sgd_step_size0=DEFAULT_SGD_STEP_SIZE0,

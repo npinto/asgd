@@ -145,6 +145,7 @@ class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
                 tensor.cast(sgd_bias + sgd_step_size * label,
                     sgd_bias.dtype),
                 sgd_bias)
+        cost = switch(margin < 1, 1 - margin, 0)
 
         aa = tensor.cast(1 - asgd_step_size, asgd_weights.dtype)
         bb = tensor.cast(asgd_step_size, asgd_weights.dtype)
@@ -160,7 +161,7 @@ class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
                     asgd_weights: new_asgd_weights,
                     asgd_bias: new_asgd_bias,
                     n_observations: new_n_observations}
-        return updates
+        return updates, cost
 
     def compile_train_fn_2(self):
         # This calling strategy is fast, but depends on the use of the CVM
@@ -169,8 +170,13 @@ class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
         self._tf2_label = label = theano.shared(np.zeros(2, dtype='int64'))
         self._tf2_idx = idx = theano.shared(np.asarray(0, dtype='int64'))
         self._tf2_idxmap = idxmap = theano.shared(np.zeros(2, dtype='int64'))
-        updates = self.vector_updates(obs[idxmap[idx]], label[idxmap[idx]])
+        self._tf2_mean_cost = mean_cost = theano.shared(
+                np.asarray(0, dtype='float64'))
+        updates, cost = self.vector_updates(obs[idxmap[idx]], label[idxmap[idx]])
         updates[idx] = idx + 1
+        aa = tensor.cast(1.0 / (idx + 1), 'float64')
+        # mean cost over idxmap
+        updates[mean_cost] = (1 - aa) * mean_cost + aa * cost
         self._train_fn_2 = theano.function([], [],
                 updates=updates,
                 mode=theano.Mode(
@@ -186,13 +192,18 @@ class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
 
         self._tf2_obs.set_value(np.asarray(X, dtype=self.dtype), borrow=True)
         self._tf2_label.set_value(y, borrow=True)
-        fn = self._train_fn_2.fn
         self._tf2_idxmap.set_value(np.arange(n_points))
         self._tf2_idx.set_value(0)
+
         if self._train_fn_2.profile:
             for i in xrange(n_points): self._train_fn_2()
         else:
+            fn = self._train_fn_2.fn
             for i in xrange(n_points): fn()
+
+        self.train_means.append(self._tf2_mean_cost.get_value()
+                    + self.l2_regularization * (self.asgd_weights ** 2).sum())
+        return self
 
     def fit(self, X, y):
         if '_train_fn_2' not in self.__dict__:
@@ -206,6 +217,7 @@ class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
         assert n_points == y.size
 
         n_iterations = self.n_iterations
+        train_means = self.train_means
 
         self._tf2_obs.set_value(X, borrow=True)
         self._tf2_label.set_value(y, borrow=True)
@@ -218,6 +230,12 @@ class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
                 for i in xrange(n_points): self._train_fn_2()
             else:
                 for i in xrange(n_points): fn()
+            train_means.append(self._tf2_mean_cost.get_value()
+                    + self.l2_regularization * (self.asgd_weights ** 2).sum())
+            if self.fit_converged():
+                break
+
+        return self
 
     def decision_function(self, X):
         return (np.dot(self.s_asgd_weights.get_value(borrow=True), X.T)
@@ -225,3 +243,10 @@ class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
 
     def predict(self, X):
         return np.sign(self.decision_function(X))
+
+    def reset(self):
+        BaseASGD.reset(self)
+        self.asgd_weights = self.asgd_weights * 0
+        self.asgd_bias = self.asgd_bias * 0
+        self.sgd_weights = self.sgd_weights * 0
+        self.sgd_bias = self.sgd_bias * 0
