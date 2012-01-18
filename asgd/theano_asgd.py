@@ -33,17 +33,29 @@ class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
     advantage as loop fusion / proper BLAS usage.
     """
 
-    sgd_weights = property(lambda self: self.s_sgd_weights.get_value(),
+    sgd_weights = property(
+            lambda self: self.s_sgd_weights.get_value(),
             lambda self, val: self.s_sgd_weights.set_value(val))
 
-    sgd_bias = property(lambda self: self.s_sgd_bias.get_value(),
-            lambda self, val: self.s_sgd_weights.set_value(val))
+    sgd_bias = property(
+            lambda self: self.s_sgd_bias.get_value(),
+            lambda self, val: self.s_sgd_bias.set_value(np.asarray(val)))
 
-    asgd_weights = property(lambda self: self.s_asgd_weights.get_value(),
+    asgd_weights = property(
+            lambda self: self.s_asgd_weights.get_value(),
             lambda self, val: self.s_asgd_weights.set_value(val))
 
-    asgd_bias = property(lambda self: self.s_asgd_bias.get_value(),
-            lambda self, val: self.s_asgd_bias.set_value(val))
+    asgd_bias = property(
+            lambda self: self.s_asgd_bias.get_value(),
+            lambda self, val: self.s_asgd_bias.set_value(np.asarray(val)))
+
+    n_observations = property(
+            lambda self: self.s_n_observations.get_value(),
+            lambda self, val: self.s_n_observations.set_value(np.asarray(val)))
+
+    sgd_step_size0 = property(
+            lambda self: self.s_sgd_step_size0.get_value(),
+            lambda self, val: self.s_sgd_step_size0.set_value(np.asarray(val)))
 
     def __init__(self, n_features,
             sgd_step_size0=DEFAULT_SGD_STEP_SIZE0,
@@ -54,6 +66,26 @@ class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
             dtype=DEFAULT_DTYPE,
             sgd_step_size_scheduling_exponent=DEFAULT_SGD_EXPONENT,
             sgd_step_size_scheduling_multiplier=DEFAULT_SGD_TIMESCALE):
+
+        self.s_n_observations = theano.shared(np.asarray(0).astype('int64'))
+
+        self.s_sgd_step_size0 = theano.shared(np.asarray(0).astype(dtype))
+
+        self.s_sgd_weights = theano.shared(
+                np.zeros((n_features), dtype=dtype),
+                name='sgd_weights')
+
+        self.s_sgd_bias = theano.shared(
+                np.asarray(0, dtype=dtype),
+                name='sgd_bias')
+
+        self.s_asgd_weights = theano.shared(
+                np.zeros((n_features), dtype=dtype),
+                name='asgd_weights')
+
+        self.s_asgd_bias = theano.shared(
+                np.asarray(0, dtype=dtype),
+                name='asgd_bias')
 
         BaseASGD.__init__(self,
             n_features,
@@ -66,28 +98,7 @@ class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
             sgd_step_size_scheduling_exponent=sgd_step_size_scheduling_exponent,
             sgd_step_size_scheduling_multiplier=sgd_step_size_scheduling_multiplier)
 
-        self.s_sgd_weights = theano.shared(
-                np.zeros((n_features), dtype=dtype),
-                name='sgd_weights')
-        self.s_sgd_bias = theano.shared(
-                np.asarray(0, dtype=dtype),
-                name='sgd_bias')
-
-        self.s_asgd_weights = theano.shared(
-                np.zeros((n_features), dtype=dtype),
-                name='asgd_weights')
-        self.s_asgd_bias = theano.shared(
-                np.asarray(0, dtype=dtype),
-                name='asgd_bias')
-
-        self.s_n_observations = theano.shared(np.asarray(0).astype('int64'))
-        del self.n_observations
-
-        self.s_sgd_step_size = theano.shared(np.asarray(0).astype(self.dtype))
-        del self.sgd_step_size
-
     def vector_updates(self, obs, label):
-        sgd_step_size0 = self.sgd_step_size0
         sgd_step_size_scheduling_exponent = \
                 self.sgd_step_size_scheduling_exponent
         sgd_step_size_scheduling_multiplier = \
@@ -95,18 +106,20 @@ class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
         l2_regularization = self.l2_regularization
 
         n_observations = self.s_n_observations
+        sgd_step_size0 = self.s_sgd_step_size0
 
         sgd_weights = self.s_sgd_weights
         sgd_bias = self.s_sgd_bias
-        sgd_step_size = self.s_sgd_step_size
+        sgd_n = (1 +
+                sgd_step_size0 * n_observations
+                * sgd_step_size_scheduling_multiplier)
+        sgd_step_size = (sgd_step_size0 /
+                (sgd_n ** sgd_step_size_scheduling_exponent))
 
         asgd_weights = self.s_asgd_weights
         asgd_bias = self.s_asgd_bias
         asgd_step_size = 1.0 / (n_observations + 1)
 
-        sgd_n = (1 + sgd_step_size0 * n_observations * sgd_step_size_scheduling_multiplier)
-        sgd_step_size = (sgd_step_size0 /
-                (sgd_n ** sgd_step_size_scheduling_exponent))
 
         # Use tensor.dot once the PR for the inner() optimization goes through
         # margin = label * (tensor.dot(obs, sgd_weights) + sgd_bias)
