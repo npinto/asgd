@@ -92,14 +92,17 @@ def run_theano_binary_asgd_speed():
 
     rstate = RandomState(42)
 
+    N_FEATURES = 10000
+
     X, y = get_fake_data(N_POINTS, N_FEATURES, rstate)
     Xtst, ytst = get_fake_data(N_POINTS, N_FEATURES, rstate)
 
     kwargs = dict(DEFAULT_KWARGS)
     kwargs['n_iterations'] = 10
+    kwargs['dtype'] = 'float32'
 
-    clf0 = NaiveBinaryASGD(*DEFAULT_ARGS, rstate=copy(rstate), **DEFAULT_KWARGS)
-    clf1 = TheanoBinaryASGD(*DEFAULT_ARGS, rstate=copy(rstate), **DEFAULT_KWARGS)
+    clf0 = NaiveBinaryASGD(N_FEATURES, rstate=copy(rstate), **DEFAULT_KWARGS)
+    clf1 = TheanoBinaryASGD(N_FEATURES, rstate=copy(rstate), **DEFAULT_KWARGS)
     clf1.compile_train_fn_2()
 
     t = time.time()

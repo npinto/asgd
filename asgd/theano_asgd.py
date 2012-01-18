@@ -15,6 +15,7 @@ from naive_asgd import (
         DEFAULT_SGD_TIMESCALE)
 
 import theano
+import theano.ifelse
 import theano.tensor as tensor
 
 class TheanoBinaryASGD(BaseASGD):
@@ -110,12 +111,20 @@ class TheanoBinaryASGD(BaseASGD):
                 1 - l2_regularization * sgd_step_size,
                 sgd_weights.dtype)
 
-        new_sgd_weights = tensor.switch(margin < 1,
+        if 1:
+            switch = tensor.switch
+        else:
+            # this is theoretically better, but still slower
+            # because of the linker's interaction with python to do lazy
+            # evaluation
+            switch = theano.ifelse.ifelse
+
+        new_sgd_weights = switch(margin < 1,
                 tensor.cast(
                     regularized_sgd_weights + sgd_step_size * label * obs,
                     regularized_sgd_weights.dtype),
                 regularized_sgd_weights)
-        new_sgd_bias = tensor.switch(margin < 1,
+        new_sgd_bias = switch(margin < 1,
                 tensor.cast(sgd_bias + sgd_step_size * label,
                     sgd_bias.dtype),
                 sgd_bias)
@@ -163,8 +172,10 @@ class TheanoBinaryASGD(BaseASGD):
         fn = self._train_fn_2.fn
         self._tf2_idxmap.set_value(np.arange(n_points))
         self._tf2_idx.set_value(0)
-        for i in xrange(n_points):
-            fn()
+        if self._train_fn_2.profile:
+            for i in xrange(n_points): self._train_fn_2()
+        else:
+            for i in xrange(n_points): fn()
 
     def fit(self, X, y):
         if '_train_fn_2' not in self.__dict__:
@@ -186,8 +197,10 @@ class TheanoBinaryASGD(BaseASGD):
         for i in xrange(n_iterations):
             self._tf2_idxmap.set_value(self.rstate.permutation(n_points))
             self._tf2_idx.set_value(0)
-            for i in xrange(n_points):
-                fn()
+            if self._train_fn_2.profile:
+                for i in xrange(n_points): self._train_fn_2()
+            else:
+                for i in xrange(n_points): fn()
 
     def decision_function(self, X):
         return (np.dot(self.s_asgd_weights.get_value(borrow=True), X.T)
