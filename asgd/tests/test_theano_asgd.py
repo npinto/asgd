@@ -1,3 +1,4 @@
+import sys
 import time
 from copy import copy
 
@@ -7,9 +8,12 @@ from numpy.testing import assert_allclose
 import numpy as np
 from numpy.random import RandomState
 
-from asgd.theano_asgd import TheanoBinaryASGD
 from asgd.naive_asgd import NaiveBinaryASGD
 from test_naive_asgd import get_fake_data
+try:
+    from asgd.theano_asgd import TheanoBinaryASGD
+except ImportError:
+    print >> sys.stderr, "\nWARNING: SKIPPING ALL TESTS REQUIRING THEANO"
 
 RTOL = 1e-6
 ATOL = 1e-6
@@ -24,7 +28,17 @@ DEFAULT_KWARGS = dict(sgd_step_size0=1e-3,
                       dtype=np.float32)
 
 
+def requires_theano(f):
+    def rval():
+        if 'TheanoBinaryASGD' in globals():
+            f()
+        else:
+            raise SkipTest('TheanoBinaryASGD failed to import')
+    rval.__name__ = f.__name__
+    return rval
 
+
+@requires_theano
 def test_theano_binary_asgd_like_naive_asgd():
 
     rstate = RandomState(42)
@@ -46,6 +60,7 @@ def test_theano_binary_asgd_like_naive_asgd():
         assert_equal(ytst_acc, 0.522)
 
 
+@requires_theano
 def test_theano_binary_asgd_early_stopping():
 
     rstate = RandomState(42)
@@ -66,6 +81,8 @@ def test_theano_binary_asgd_early_stopping():
     assert clf0.n_observations < N_POINTS * kwargs['n_iterations']
 
 
+
+@requires_theano
 def test_theano_binary_asgd_converges_to_truth():
     n_features = 5
 
