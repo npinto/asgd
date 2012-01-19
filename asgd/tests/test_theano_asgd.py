@@ -134,29 +134,41 @@ def test_theano_binary_asgd_converges_to_truth():
 @requires_theano
 def run_theano_binary_asgd_speed():
 
-    for dtype in 'float32', 'float64':
-        for N_FEATURES in 100, 1000, 10000:
+    if 1:
+        N_POINTS = 1000
+        dtypes = ['float64']
+        sizes = [1e5]
+    else:
+        N_POINTS = 500
+        sizes=[1e2, 1e3, 1e4, 1e5]
+        dtypes=['float32', 'float64']
 
-            rstate = RandomState(42)
+    rstate = RandomState(42)
+    XX, y = get_fake_data(N_POINTS, max(sizes), rstate)
 
-            X, y = get_fake_data(N_POINTS, N_FEATURES, rstate)
-            Xtst, ytst = get_fake_data(N_POINTS, N_FEATURES, rstate)
+    import theano
+    dtype_orig = theano.config.floatX
+
+    for dtype in dtypes:
+        theano.config.floatX = dtype
+        for N_FEATURES in sizes:
+            X = XX[:,:N_FEATURES].astype(dtype)
 
             kwargs = dict(DEFAULT_KWARGS)
-            kwargs['n_iterations'] = 10
             kwargs['dtype'] = dtype
 
-            clf0 = NaiveBinaryASGD(N_FEATURES, rstate=copy(rstate), **DEFAULT_KWARGS)
-            clf1 = TheanoBinaryASGD(N_FEATURES, rstate=copy(rstate), **DEFAULT_KWARGS)
+            clf0 = NaiveBinaryASGD(N_FEATURES, rstate=copy(rstate), **kwargs)
+            clf1 = TheanoBinaryASGD(N_FEATURES, rstate=copy(rstate), **kwargs)
             clf1.compile_train_fn_2()
 
             t = time.time()
-            clf0.fit(X, y)
+            clf0.partial_fit(X, y)
             t0 = time.time() - t
 
             t = time.time()
-            clf1.fit(X, y)
+            clf1.partial_fit(X, y)
             t1 = time.time() - t
             print 'N_FEAT:%i  dtype:%s  Naive:%.3f  Theano:%.3f' % (
                     N_FEATURES, dtype, t0, t1)
 
+    theano.config.floatX = dtype_orig
