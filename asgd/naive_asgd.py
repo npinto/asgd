@@ -274,6 +274,8 @@ class NaiveBinaryASGD(BaseASGD, DetermineStepSizeMixin):
 
         n_iterations = self.n_iterations
 
+        self.determine_sgd_step_size0(X, y)
+
         for i in xrange(n_iterations):
 
             idx = self.rstate.permutation(n_points)
