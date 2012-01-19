@@ -11,7 +11,7 @@ DEFAULT_SGD_STEP_SIZE0 = 1e-2
 DEFAULT_L2_REGULARIZATION = 1e-3
 DEFAULT_N_ITERATIONS = 10
 DEFAULT_FEEDBACK = False
-DEFAULT_RSTATE = None
+DEFAULT_RSTATE = 42
 DEFAULT_DTYPE = np.float64
 DEFAULT_SGD_EXPONENT = 2.0 / 3.0
 DEFAULT_SGD_TIMESCALE = 'l2_regularization'
@@ -54,6 +54,8 @@ class BaseASGD(object):
 
         if rstate is None:
             rstate = np.random.RandomState()
+        elif type(rstate) is int:
+            rstate = np.random.RandomState(rstate)
         self.rstate = rstate
 
         self.l2_regularization = l2_regularization
