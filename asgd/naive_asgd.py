@@ -3,9 +3,11 @@
 naive, non-optimized implementation
 """
 
+import copy
+from itertools import izip
+
 import numpy as np
 from numpy import dot
-from itertools import izip
 
 DEFAULT_SGD_STEP_SIZE0 = None
 DEFAULT_L2_REGULARIZATION = 1e-3
@@ -63,7 +65,6 @@ class BaseASGD(object):
 
         # --
         self.sgd_step_size0 = sgd_step_size0
-        self._orig_sgd_step_size0 = sgd_step_size0
         self.sgd_step_size_scheduling_exponent = \
             sgd_step_size_scheduling_exponent
         if sgd_step_size_scheduling_multiplier == 'l2_regularization':
@@ -71,21 +72,12 @@ class BaseASGD(object):
         else:
             self.sgd_step_size_scheduling_multiplier = \
                     sgd_step_size_scheduling_multiplier
-        self.__reset()  # don't call sub-class reset yet
 
-    def __reset(self):
-        """
-        Reset this object to the initial state before fitting.
-        """
         self.n_observations = 0
         self.asgd_step_size0 = 1
         self.asgd_step_size = self.asgd_step_size0
-        self.sgd_step_size0 = self._orig_sgd_step_size0
         self.sgd_step_size = self.sgd_step_size0
         self.train_means = []
-
-    def reset(self):
-        return self.__reset()
 
     def fit_converged(self):
         train_means = self.train_means
@@ -149,21 +141,22 @@ class DetermineStepSizeMixin(object):
                 hi_cost = self.evaluate_step_size(X, y, hi_step_size0)
                 show('determine_sgd_step_size0: hi_size0 = %f, hi_cost = %f' %
                         (hi_step_size0, hi_cost))
-        self.reset()
         show('determine_sgd_step_size0: final step size %f' %
                 lo_step_size0)
         self.sgd_step_size0 = lo_step_size0
+        self.sgd_step_size = lo_step_size0
 
     def evaluate_step_size(self, X, y, sgd_step_size0):
-        self.reset()
-        self.sgd_step_size0 = sgd_step_size0
-        self.partial_fit(X, y)
+        other = copy.deepcopy(self)
+        other.sgd_step_size0 = sgd_step_size0
+        other.sgd_step_size = sgd_step_size0
+        other.partial_fit(X, y)
         # XXX: hack - asgd is lower variance than sgd, but it's tuned to work
         #             well asymptotically, not after just a few examples
-        weights = .5 * self.asgd_weights + .5 * self.sgd_weights
-        bias = .5 * self.asgd_bias + .5 * self.sgd_bias
+        weights = .5 * other.asgd_weights + .5 * other.sgd_weights
+        bias = .5 * other.asgd_bias + .5 * other.sgd_bias
         margin = y * (dot(X, weights) + bias)
-        l2_cost = self.l2_regularization * (weights ** 2).sum()
+        l2_cost = other.l2_regularization * (weights ** 2).sum()
         cost = np.maximum(0, 1 - margin) + l2_cost
         return cost.mean()
 

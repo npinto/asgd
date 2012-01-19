@@ -107,6 +107,19 @@ class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
             sgd_step_size_scheduling_exponent=sgd_step_size_scheduling_exponent,
             sgd_step_size_scheduling_multiplier=sgd_step_size_scheduling_multiplier)
 
+    def __getstate__(self):
+        dct = dict(self.__dict__)
+        dynamic_attrs = [
+                '_train_fn_2',
+                '_tf2_obs',
+                '_tf2_idx',
+                '_tf2_idxmap',
+                '_tf2_mean_cost']
+        for attr in dynamic_attrs:
+            if attr in dct:
+                del dct[attr]
+        return dct
+
     def vector_updates(self, obs, label):
         sgd_step_size_scheduling_exponent = \
                 self.sgd_step_size_scheduling_exponent
