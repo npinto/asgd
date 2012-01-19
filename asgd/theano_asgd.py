@@ -196,10 +196,12 @@ class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
         n_points, n_features = X.shape
         assert n_features == self.n_features
         assert (n_points,) == y.shape
+        assert np.all(y ** 2 == 1)  # make sure labels are +-1
 
-        self._tf2_obs.set_value(np.asarray(X, dtype=self.dtype), borrow=True)
+        self._tf2_obs.set_value(X, borrow=True)
+        # This may cast `y` to a floating point type
         self._tf2_label.set_value(y, borrow=True)
-        self._tf2_idxmap.set_value(np.arange(n_points))
+        self._tf2_idxmap.set_value(np.arange(n_points), borrow=True)
         self._tf2_idx.set_value(0)
 
         if self._train_fn_2.profile:
@@ -218,6 +220,7 @@ class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
 
         assert X.ndim == 2
         assert y.ndim == 1
+        assert np.all(y ** 2 == 1)  # make sure labels are +-1
 
         n_points, n_features = X.shape
         assert n_features == self.n_features

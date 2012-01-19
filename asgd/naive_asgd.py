@@ -195,6 +195,7 @@ class NaiveBinaryASGD(BaseASGD, DetermineStepSizeMixin):
 
     def partial_fit(self, X, y):
 
+        assert np.all(y ** 2 == 1)  # make sure labels are +-1
         sgd_step_size0 = self.sgd_step_size0
         sgd_step_size = self.sgd_step_size
         sgd_step_size_scheduling_exponent = \
