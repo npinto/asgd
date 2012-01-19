@@ -218,7 +218,8 @@ class TheanoBinaryASGD(BaseASGD, DetermineStepSizeMixin):
         if '_train_fn_2' not in self.__dict__:
             self.compile_train_fn_2()
 
-        self.determine_sgd_step_size0(X, y)
+        if self.sgd_step_size0 is None:
+            self.determine_sgd_step_size0(X, y)
 
         assert X.ndim == 2
         assert y.ndim == 1

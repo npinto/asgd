@@ -7,7 +7,7 @@ import numpy as np
 from numpy import dot
 from itertools import izip
 
-DEFAULT_SGD_STEP_SIZE0 = 1e-2
+DEFAULT_SGD_STEP_SIZE0 = None
 DEFAULT_L2_REGULARIZATION = 1e-3
 DEFAULT_N_ITERATIONS = 10
 DEFAULT_FEEDBACK = False
@@ -63,6 +63,7 @@ class BaseASGD(object):
 
         # --
         self.sgd_step_size0 = sgd_step_size0
+        self._orig_sgd_step_size0 = sgd_step_size0
         self.sgd_step_size_scheduling_exponent = \
             sgd_step_size_scheduling_exponent
         if sgd_step_size_scheduling_multiplier == 'l2_regularization':
@@ -79,6 +80,7 @@ class BaseASGD(object):
         self.n_observations = 0
         self.asgd_step_size0 = 1
         self.asgd_step_size = self.asgd_step_size0
+        self.sgd_step_size0 = self._orig_sgd_step_size0
         self.sgd_step_size = self.sgd_step_size0
         self.train_means = []
 
@@ -274,7 +276,8 @@ class NaiveBinaryASGD(BaseASGD, DetermineStepSizeMixin):
 
         n_iterations = self.n_iterations
 
-        self.determine_sgd_step_size0(X, y)
+        if self.sgd_step_size0 is None:
+            self.determine_sgd_step_size0(X, y)
 
         for i in xrange(n_iterations):
 
