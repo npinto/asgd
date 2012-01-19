@@ -118,8 +118,8 @@ class DetermineStepSizeMixin(object):
     def determine_sgd_step_size0(self, X, y, base=1.0, factor=2.0):
         # trim X and y down to at most 1000 examples
         def show(msg):
-            #print(msg)
-            pass
+            if self.verbose:
+                print(msg)
         X = X[:self.n_examples_for_determining_step_size]
         y = y[:self.n_examples_for_determining_step_size]
         lo_step_size0 = base
