@@ -9,6 +9,8 @@ from itertools import izip
 import numpy as np
 from numpy import dot
 
+from .utils import geometric_bracket_min
+
 DEFAULT_SGD_STEP_SIZE0 = None
 DEFAULT_L2_REGULARIZATION = 1e-3
 DEFAULT_N_ITERATIONS = 10
@@ -87,6 +89,13 @@ class BaseASGD(object):
                 return True
         return False
 
+    def test_error_rate(self, X, y):
+        yhat = self.predict(X)
+        mu = np.mean((y != yhat).astype('float'))
+        var = mu * (1 - mu) / len(y)
+        stderr = np.sqrt(var)
+        return mu, stderr
+
 
 class DetermineStepSizeMixin(object):
     """
@@ -97,8 +106,8 @@ class DetermineStepSizeMixin(object):
     This mixin requires the host class to have
 
     self.partial_fit(X, y)
-    self.n_observations
     self.sgd_step_size0
+    self.sgd_step_size
     self.sgd_weights
     self.sgd_bias
     self.asgd_weights
@@ -109,42 +118,24 @@ class DetermineStepSizeMixin(object):
     n_examples_for_determining_step_size = 1000
     verbose = 0
 
-    def determine_sgd_step_size0(self, X, y, base=1.0, factor=2.0):
+    def determine_sgd_step_size0(self, X, y, base=1.0e-2, factor=2.0):
         # trim X and y down to at most 1000 examples
-        def show(msg):
-            if self.verbose:
-                print(msg)
         X = X[:self.n_examples_for_determining_step_size]
         y = y[:self.n_examples_for_determining_step_size]
-        lo_step_size0 = base
-        lo_cost = self.evaluate_step_size(X, y, lo_step_size0)
-        show('determine_sgd_step_size0: lo_cost = %f' % lo_cost)
-        hi_step_size0 = base * factor
-        hi_cost = self.evaluate_step_size(X, y, hi_step_size0)
-        show('determine_sgd_step_size0: hi_cost = %f' % hi_cost)
-        if lo_cost < hi_cost:
-            # do a geometric search toward 0 for bottom of curve
-            while lo_cost + 1e-4 < hi_cost:
-                # bring down hi_step_size0
-                hi_step_size0 = lo_step_size0
-                hi_cost = lo_cost
-                lo_step_size0 = hi_step_size0 / factor
-                lo_cost = self.evaluate_step_size(X, y, lo_step_size0);
-                show('determine_sgd_step_size0: lo_size0 = %f, lo_cost = %f' %
-                        (lo_step_size0, lo_cost))
-        elif hi_cost < lo_cost:
-            while hi_cost + 1e-4 < lo_cost:
-                # bring up lo_step_size0
-                lo_step_size0 = hi_step_size0
-                lo_cost = hi_cost
-                hi_step_size0 = lo_step_size0 * factor
-                hi_cost = self.evaluate_step_size(X, y, hi_step_size0)
-                show('determine_sgd_step_size0: hi_size0 = %f, hi_cost = %f' %
-                        (hi_step_size0, hi_cost))
-        show('determine_sgd_step_size0: final step size %f' %
-                lo_step_size0)
-        self.sgd_step_size0 = lo_step_size0
-        self.sgd_step_size = lo_step_size0
+        def eval_size0(size0):
+            rval = self.evaluate_step_size(X, y, size0)
+            if self.verbose:
+                print('determine_sgd_step_size0: %.6f\t%.6f' % (
+                    size0, rval))
+            return rval
+        lo_size0, hi_size0 = geometric_bracket_min(eval_size0,
+                x0=base,
+                x1=factor * base,
+                f_thresh=1e-4)
+        # assume that the actual learning rate should be just a little slower
+        # than was optimal on the first 1000 points
+        self.sgd_step_size0 = lo_size0 / factor
+        self.sgd_step_size = self.sgd_step_size0
 
     def evaluate_step_size(self, X, y, sgd_step_size0):
         other = copy.deepcopy(self)

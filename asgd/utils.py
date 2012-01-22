@@ -26,7 +26,7 @@ def split_center_normalize(X, y,
         validset_fraction=.2,
         validset_max_examples=5000,
         inplace=False,
-        min_std=1e-4,
+        min_std=1e-8,
         batchsize=1):
     n_valid = int(min(
         validset_max_examples,
@@ -62,10 +62,27 @@ def split_center_normalize(X, y,
             train_std)
 
 
-def simple_bracket_min(f, pt0, pt1):
-    v0 = f(pt0)
-    v1 = f(pt1)
-    if v0 > v1:
-        while v0 > v1:
-            raise NotImplementedError()
+def geometric_bracket_min(f, x0, x1, f_thresh):
+    """
+    Find a pair (x2, x3) whose ratio x2/x3 == x0/x1, that bracket x*
+    minimizing f
+    """
+    if x0 >= x1:
+        raise ValueError('x0 must be < x1', (x0, x1))
+    factor = x1 / x0
+    y0 = float(f(x0))
+    y1 = float(f(x1))
+    if y0 < y1:
+        while y0 + f_thresh < y1:
+            x1 = x0
+            y1 = y0
+            x0 = x1 / factor
+            y0 = float(f(x0))
+    elif y1 < y0:
+        while y1 + f_thresh < y0:
+            x0 = x1
+            y0 = y1
+            x1 = x0 * factor
+            y1 = float(f(x1))
+    return (x0, x1)
 
