@@ -280,7 +280,7 @@ class NaiveBinaryASGD(BaseASGD, DetermineStepSizeMixin):
         return self
 
     def decision_function(self, X):
-        return dot(self.asgd_weights, X.T) + self.asgd_bias
+        return dot(self.asgd_weights, np.asarray(X).T) + self.asgd_bias
 
     def predict(self, X):
         return np.sign(self.decision_function(X))
