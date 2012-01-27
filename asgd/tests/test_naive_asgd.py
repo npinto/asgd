@@ -41,7 +41,6 @@ def get_fake_multiclass_data(n_points, n_features, n_classes, rstate):
 
 
 def test_naive_asgd():
-
     rstate = RandomState(42)
 
     X, y = get_fake_data(N_POINTS, N_FEATURES, rstate)
@@ -78,7 +77,6 @@ def test_naive_asgd_with_feedback():
 
 
 def test_naive_asgd_multi_labels():
-
     rstate = RandomState(44)
 
     X, y = get_fake_binary_data_multi_labels(N_POINTS, N_FEATURES, rstate)
@@ -98,7 +96,6 @@ def test_naive_asgd_multi_labels():
 
 
 def test_naive_multiclass_ova_asgd():
-
     rstate = RandomState(45)
 
     n_classes = 10
@@ -123,7 +120,6 @@ def test_naive_multiclass_ova_asgd():
 
 
 def test_naive_multiclass_ova_vs_binary_asgd():
-
     rstate = RandomState(42)
 
     n_classes = 3
@@ -162,7 +158,6 @@ def test_naive_multiclass_ova_vs_binary_asgd():
 
 @raises(ValueError)
 def test_naive_ova_asgd_wrong_labels():
-
     rstate = RandomState(42)
 
     n_classes = 10
@@ -174,3 +169,17 @@ def test_naive_ova_asgd_wrong_labels():
                   rstate=RandomState(999), **DEFAULT_KWARGS)
     ytrn_bad = rstate.randint(n_classes + 42, size=len(ytrn))
     clf.partial_fit(Xtrn, ytrn_bad)
+
+
+def test_determine_stepsize_mixin():
+    rstate = RandomState(42)
+
+    X, y = get_fake_data(N_POINTS, N_FEATURES, rstate)
+    Xtst, ytst = get_fake_data(N_POINTS, N_FEATURES, rstate)
+
+    clf = BinaryASGD(*DEFAULT_ARGS, rstate=rstate, **DEFAULT_KWARGS)
+
+    clf.determine_sgd_step_size0(X, y)
+
+    assert_allclose(clf.sgd_step_size0, 0.00390625)
+

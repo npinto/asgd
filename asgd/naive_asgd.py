@@ -3,25 +3,45 @@
 naive, non-optimized implementation
 """
 
-import numpy as np
-from numpy import dot
+import copy
 from itertools import izip
 
-DEFAULT_SGD_STEP_SIZE0 = 1e-2
+import numpy as np
+from numpy import dot
+
+from .utils import geometric_bracket_min
+
+DEFAULT_SGD_STEP_SIZE0 = None
 DEFAULT_L2_REGULARIZATION = 1e-3
 DEFAULT_N_ITERATIONS = 10
 DEFAULT_FEEDBACK = False
-DEFAULT_RSTATE = None
-DEFAULT_DTYPE = np.float32
+DEFAULT_RSTATE = 42
+DEFAULT_DTYPE = np.float64
+DEFAULT_SGD_EXPONENT = 2.0 / 3.0
+DEFAULT_SGD_TIMESCALE = 'l2_regularization'
+# can be 'l2_regularization' or float
+# This timescale default comes from [1] in which it is introduced as a
+# heuristic.
+# [1] http://www.dbs.ifi.lmu.de/~yu_k/cvpr11_0694.pdf
+# Update: it is also recommended in Leon Bottou's SvmAsgd software.
 
 
 class BaseASGD(object):
+    """
+    XXX
+    """
+
+    min_n_iterations = 5
 
     def __init__(self, n_features,
                  sgd_step_size0=DEFAULT_SGD_STEP_SIZE0,
                  l2_regularization=DEFAULT_L2_REGULARIZATION,
-                 n_iterations=DEFAULT_N_ITERATIONS, feedback=DEFAULT_FEEDBACK,
-                 rstate=DEFAULT_RSTATE, dtype=DEFAULT_DTYPE):
+                 n_iterations=DEFAULT_N_ITERATIONS,
+                 feedback=DEFAULT_FEEDBACK,
+                 rstate=DEFAULT_RSTATE,
+                 dtype=DEFAULT_DTYPE,
+                 sgd_step_size_scheduling_exponent = DEFAULT_SGD_EXPONENT,
+                 sgd_step_size_scheduling_multiplier = DEFAULT_SGD_TIMESCALE):
 
         # --
         assert n_features > 1
@@ -30,31 +50,112 @@ class BaseASGD(object):
         assert n_iterations > 0
         self.n_iterations = n_iterations
 
+        self.min_n_iterations = min(n_iterations, self.min_n_iterations)
+
         if feedback:
             raise NotImplementedError("FIXME: feedback support is buggy")
         self.feedback = feedback
 
         if rstate is None:
             rstate = np.random.RandomState()
+        elif type(rstate) is int:
+            rstate = np.random.RandomState(rstate)
         self.rstate = rstate
 
-        assert l2_regularization > 0
         self.l2_regularization = l2_regularization
         self.dtype = dtype
 
         # --
         self.sgd_step_size0 = sgd_step_size0
-        self.sgd_step_size = sgd_step_size0
-        self.sgd_step_size_scheduling_exponent = 2. / 3
-        self.sgd_step_size_scheduling_multiplier = l2_regularization
-
-        self.asgd_step_size0 = 1
-        self.asgd_step_size = self.asgd_step_size0
+        self.sgd_step_size_scheduling_exponent = \
+            sgd_step_size_scheduling_exponent
+        if sgd_step_size_scheduling_multiplier == 'l2_regularization':
+            self.sgd_step_size_scheduling_multiplier = l2_regularization
+        else:
+            self.sgd_step_size_scheduling_multiplier = \
+                    sgd_step_size_scheduling_multiplier
 
         self.n_observations = 0
+        self.asgd_step_size0 = 1
+        self.asgd_step_size = self.asgd_step_size0
+        self.sgd_step_size = self.sgd_step_size0
+        self.train_means = []
+
+    def fit_converged(self):
+        train_means = self.train_means
+        if len(train_means) >= self.min_n_iterations:
+            midpt = len(train_means) // 2
+            if train_means[-1] > .99 * train_means[midpt]:
+                return True
+        return False
+
+    def test_error_rate(self, X, y):
+        yhat = self.predict(X)
+        mu = np.mean((y != yhat).astype('float'))
+        var = mu * (1 - mu) / len(y)
+        stderr = np.sqrt(var)
+        return mu, stderr
 
 
-class NaiveBinaryASGD(BaseASGD):
+class DetermineStepSizeMixin(object):
+    """
+    Implements the automatic step-size selection logic from
+    http://leon.bottou.org/projects/sgd
+
+
+    This mixin requires the host class to have
+
+    self.partial_fit(X, y)
+    self.sgd_step_size0
+    self.sgd_step_size
+    self.sgd_weights
+    self.sgd_bias
+    self.asgd_weights
+    self.asgd_bias
+
+    """
+
+    n_examples_for_determining_step_size = 1000
+    verbose = 0
+
+    def determine_sgd_step_size0(self, X, y, base=1.0e-2, factor=2.0):
+        # trim X and y down to at most 1000 examples
+        X = X[:self.n_examples_for_determining_step_size]
+        y = y[:self.n_examples_for_determining_step_size]
+        def eval_size0(size0):
+            rval = self.evaluate_step_size(X, y, size0)
+            if self.verbose:
+                print('determine_sgd_step_size0: %.6f\t%.6f' % (
+                    size0, rval))
+            return rval
+        lo_size0, hi_size0 = geometric_bracket_min(eval_size0,
+                x0=base,
+                x1=factor * base,
+                f_thresh=1e-4)
+        # assume that the actual learning rate should be just a little slower
+        # than was optimal on the first 1000 points
+        self.sgd_step_size0 = lo_size0 / factor
+        self.sgd_step_size = self.sgd_step_size0
+
+    def evaluate_step_size(self, X, y, sgd_step_size0):
+        other = copy.deepcopy(self)
+        other.sgd_step_size0 = sgd_step_size0
+        other.sgd_step_size = sgd_step_size0
+        other.partial_fit(X, y)
+        # XXX: hack - asgd is lower variance than sgd, but it's tuned to work
+        #             well asymptotically, not after just a few examples
+        weights = .5 * other.asgd_weights + .5 * other.sgd_weights
+        bias = .5 * other.asgd_bias + .5 * other.sgd_bias
+        margin = y * (dot(X, weights) + bias)
+        l2_cost = other.l2_regularization * (weights ** 2).sum()
+        cost = np.maximum(0, 1 - margin) + l2_cost
+        return cost.mean()
+
+
+class NaiveBinaryASGD(BaseASGD, DetermineStepSizeMixin):
+    """
+    XXX
+    """
 
     def __init__(self, n_features, sgd_step_size0=DEFAULT_SGD_STEP_SIZE0,
                  l2_regularization=DEFAULT_L2_REGULARIZATION,
@@ -80,6 +181,7 @@ class NaiveBinaryASGD(BaseASGD):
 
     def partial_fit(self, X, y):
 
+        assert np.all(y ** 2 == 1)  # make sure labels are +-1
         sgd_step_size0 = self.sgd_step_size0
         sgd_step_size = self.sgd_step_size
         sgd_step_size_scheduling_exponent = \
@@ -97,6 +199,8 @@ class NaiveBinaryASGD(BaseASGD):
 
         n_observations = self.n_observations
 
+        costs = []
+
         for obs, label in izip(X, y):
 
             # -- compute margin
@@ -110,6 +214,9 @@ class NaiveBinaryASGD(BaseASGD):
 
                 sgd_weights += sgd_step_size * label * obs
                 sgd_bias += sgd_step_size * label
+                costs.append(1 - float(margin))
+            else:
+                costs.append(0)
 
             # -- update asgd
             asgd_weights = (1 - asgd_step_size) * asgd_weights \
@@ -137,6 +244,9 @@ class NaiveBinaryASGD(BaseASGD):
 
         self.n_observations = n_observations
 
+        self.train_means.append(np.mean(costs)
+                + self.l2_regularization * (self.asgd_weights ** 2).sum())
+
         return self
 
     def fit(self, X, y):
@@ -150,6 +260,9 @@ class NaiveBinaryASGD(BaseASGD):
 
         n_iterations = self.n_iterations
 
+        if self.sgd_step_size0 is None:
+            self.determine_sgd_step_size0(X, y)
+
         for i in xrange(n_iterations):
 
             idx = self.rstate.permutation(n_points)
@@ -161,16 +274,29 @@ class NaiveBinaryASGD(BaseASGD):
                 self.sgd_weights = self.asgd_weights
                 self.sgd_bias = self.asgd_bias
 
+            if self.fit_converged():
+                break
+
         return self
 
     def decision_function(self, X):
-        return dot(self.asgd_weights, X.T) + self.asgd_bias
+        return dot(self.asgd_weights, np.asarray(X).T) + self.asgd_bias
 
     def predict(self, X):
         return np.sign(self.decision_function(X))
 
+    def reset(self):
+        BaseASGD.reset(self)
+        self.asgd_weights = self.asgd_weights * 0
+        self.asgd_bias = self.asgd_bias * 0
+        self.sgd_weights = self.sgd_weights * 0
+        self.sgd_bias = self.sgd_bias * 0
+
 
 class NaiveOVAASGD(BaseASGD):
+    """
+    XXX
+    """
 
     def __init__(self, n_classes, n_features,
                  sgd_step_size0=DEFAULT_SGD_STEP_SIZE0,
