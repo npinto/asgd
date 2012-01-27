@@ -30,6 +30,8 @@ class BaseASGD(object):
         assert n_iterations > 0
         self.n_iterations = n_iterations
 
+        if feedback:
+            raise NotImplementedError("FIXME: feedback support is buggy")
         self.feedback = feedback
 
         if rstate is None:
@@ -97,10 +99,10 @@ class NaiveBinaryASGD(BaseASGD):
 
         for obs, label in izip(X, y):
 
-            # 1. compute margin
+            # -- compute margin
             margin = label * (dot(obs, sgd_weights) + sgd_bias)
 
-            # 2.2 update sgd
+            # -- update sgd
             if l2_regularization:
                 sgd_weights *= (1 - l2_regularization * sgd_step_size)
 
@@ -109,7 +111,7 @@ class NaiveBinaryASGD(BaseASGD):
                 sgd_weights += sgd_step_size * label * obs
                 sgd_bias += sgd_step_size * label
 
-            # 2.2 update asgd
+            # -- update asgd
             asgd_weights = (1 - asgd_step_size) * asgd_weights \
                     + asgd_step_size * sgd_weights
             asgd_bias = (1 - asgd_step_size) * asgd_bias \
@@ -224,10 +226,10 @@ class NaiveOVAASGD(BaseASGD):
         for obs, label in izip(X, y):
             label = 2 * (np.arange(n_classes) == label).astype(int) - 1
 
-            # 1. compute margin
+            # -- compute margin
             margin = label * (dot(obs, sgd_weights) + sgd_bias)
 
-            # 2.2 update sgd
+            # -- update sgd
             if l2_regularization:
                 sgd_weights *= (1 - l2_regularization * sgd_step_size)
 
@@ -240,13 +242,13 @@ class NaiveOVAASGD(BaseASGD):
             )
             sgd_bias[violations] += sgd_step_size * label_violated
 
-            # 2.2 update asgd
+            # -- update asgd
             asgd_weights = (1 - asgd_step_size) * asgd_weights \
                     + asgd_step_size * sgd_weights
             asgd_bias = (1 - asgd_step_size) * asgd_bias \
                     + asgd_step_size * sgd_bias
 
-            # 4.1 update step_sizes
+            # -- update step_sizes
             n_observations += 1
             sgd_step_size_scheduling = (1 + sgd_step_size0 * n_observations *
                                         sgd_step_size_scheduling_multiplier)
