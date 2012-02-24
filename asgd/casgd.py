@@ -39,6 +39,13 @@ class CASGD(object):
 
     def partial_fit(self, X, y):
 
+        # force ndarrays to point to different data
+        if self.sgd_weights is self.asgd_weights:
+            self.asgd_weights = self.asgd_weights.copy(order='C')
+        if self.sgd_bias is self.asgd_bias:
+            self.asgd_bias = self.asgd_bias.copy(order='C')
+
+        # require that all array are in contiguous C format
         input_req = ['A', 'O', 'C']
         output_req = ['A', 'O', 'W', 'C']
         sgd_weights = np.require(
@@ -60,6 +67,7 @@ class CASGD(object):
         X = np.require(X, dtype=np.float32, requirements=input_req)
         y = np.require(y, dtype=np.float32, requirements=input_req)
         
+        # convert all parameters to the right C type
         sgd_step_size0 = ct.c_float(self.sgd_step_size0)
         sgd_step_size = ct.c_float(self.sgd_step_size)
         sgd_step_size_scheduling_exponent = \
@@ -71,6 +79,7 @@ class CASGD(object):
         l2_regularization = ct.c_float(self.l2_regularization)
         n_observations = ct.c_long(self.n_observations)
 
+        # get array sizes in the right format
         sgd_weights_rows = ct.c_size_t(sgd_weights.shape[0])
         sgd_weights_cols = ct.c_size_t(1)
         if sgd_weights.ndim == 2:
@@ -157,17 +166,17 @@ class CASGD(object):
             Xb = X[idx]
             yb = y[idx]
 
-            print "before"
-            print self.sgd_weights
-            print self.sgd_bias
-            print self.asgd_weights
-            print self.asgd_bias
+            #print "before"
+            #print self.sgd_weights
+            #print self.sgd_bias
+            #print self.asgd_weights
+            #print self.asgd_bias
             self.partial_fit(Xb, yb)
-            print "after"
-            print self.sgd_weights
-            print self.sgd_bias
-            print self.asgd_weights
-            print self.asgd_bias
+            #print "after"
+            #print self.sgd_weights
+            #print self.sgd_bias
+            #print self.asgd_weights
+            #print self.asgd_bias
             if self.feedback:
                 self.sgd_weights = self.asgd_weights
                 self.sgd_bias = self.asgd_bias

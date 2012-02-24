@@ -4,23 +4,6 @@
 
 #include "asgd_blas.h"
 
-#include <stdio.h>
-
-static void prt(float *x, size_t x_rows, size_t x_cols)
-{
-	FILE *f = fopen("out.txt", "a");
-	for (long j=0; j<x_rows; ++j)
-	{
-		for (long k=0; k<x_cols; ++k)
-		{
-			fprintf(f, "%f ", x[j*x_cols+k]);
-		}
-		fprintf(f, "\n");
-	}
-	fprintf(f, "\n");
-	fclose(f);
-}
-
 void core_partial_fit(
 		long *n_observs,
 		float *sgd_step_size,
@@ -46,20 +29,17 @@ void core_partial_fit(
 		float *asgd_bias,
 		size_t asgd_bias_rows,
 		size_t asgd_bias_cols,
-		
+
 		float *X,
 		size_t X_rows,
 		size_t X_cols,
-		
+
 		float *y,
 		size_t y_rows,
 		size_t y_cols)
 {
-	//prt(X, X_rows, X_cols);
-	//prt(y, y_rows, y_cols);
-	
-	for (size_t i = 0; i < X_rows; ++i) {
-
+	for (size_t i = 0; i < X_rows; ++i)
+	{
 		// compute margin //
 		// TODO sgd_weights will become a matrix
 		// notice that each row in X is also a column because of the stride
@@ -96,7 +76,7 @@ void core_partial_fit(
 		cblas_sscal(asgd_weights_rows,
 				1 - *asgd_step_size,
 				asgd_weights, 1);
-		
+
 		cblas_saxpy(asgd_weights_rows,
 				*asgd_step_size,
 				sgd_weights, 1,
@@ -108,13 +88,13 @@ void core_partial_fit(
 
 		// update step_sizes //
 		*n_observs += 1;
-		
+
 		float sgd_step_size_scheduling =
 			1 + sgd_step_size0 * *n_observs * sgd_step_size_scheduling_mul;
-		
+
 		*sgd_step_size = sgd_step_size0 /
 			pow(sgd_step_size_scheduling, sgd_step_size_scheduling_exp);
-		
+
 		*asgd_step_size = 1.0f / *n_observs;
 	}
 }

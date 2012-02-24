@@ -206,9 +206,9 @@ bool test_decision_function(double tolerance)
 	decision_function(clf, Xm, rm);
 	bool res = true;
 	printf("testing decision_function\n");
-	for (size_t i = 0; i < 1; ++i)
+	for (size_t i = 0; i < 5; ++i)
 	{
-		for (size_t j = 0; j < 5; ++j)
+		for (size_t j = 0; j < 1; ++j)
 		{
 			printf("exp: %f got: %f\n",
 				out_r[i][j],
@@ -263,9 +263,9 @@ bool test_predict(double tolerance)
 	predict(clf, Xm, rm);
 	bool res = true;
 	printf("testing decision_function\n");
-	for (size_t i = 0; i < 1; ++i)
+	for (size_t i = 0; i < 5; ++i)
 	{
-		for (size_t j = 0; j < 5; ++j)
+		for (size_t j = 0; j < 1; ++j)
 		{
 			printf("exp: %f got: %f\n",
 				out_r[i][j],

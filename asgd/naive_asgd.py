@@ -110,8 +110,18 @@ class NaiveBinaryASGD(object):
             idx = np.random.permutation(n_points)
             Xb = X[idx]
             yb = y[idx]
-            self.partial_fit(Xb, yb)
 
+            #print "before"
+            #print self.sgd_weights
+            #print self.sgd_bias
+            #print self.asgd_weights
+            #print self.asgd_bias
+            self.partial_fit(Xb, yb)
+            #print "after"
+            #print self.sgd_weights
+            #print self.sgd_bias
+            #print self.asgd_weights
+            #print self.asgd_bias
             if self.feedback:
                 self.sgd_weights = self.asgd_weights
                 self.sgd_bias = self.asgd_bias

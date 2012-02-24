@@ -1,16 +1,33 @@
+# GCC
 CC = gcc
-DEBUG = -g
-CFLAGS = -Wall -std=c99 -fPIC
+#DEBUG = -g
+CFLAGS = -Wall -std=c99 -fPIC -O3 -march=nocona
 
+# ICC
+#CC = icc
+#CFLAGS = -Wall -std=c99 -fPIC -O2 -xhost -ipo -fno-fnalias
+
+# stock ATLAS
 INCDIR = -I/usr/include/
 LIBDIR = -L/usr/lib64/atlas
 
+# custom ATLAS
+#INCDIR = -I/home/cloud/projects/asgd/ATLASobj/include
+#LIBDIR = -L/home/cloud/projects/asgd/ATLASobj/lib
+
+# MKL
+#INCDIR = -I/opt/intel/mkl/include
+#LIBDIR = -L/opt/intel/mkl/lib/intel64
+
+MATHLIB = -lm
+#MATHLIB =
+
 ifeq ($(TYPE),blas)
-LIBS = -lm -lcblas
+LIBS = $(MATHLIB) -lcblas
 DEFS = -DASGD_BLAS
 OBJS = 
 else
-LIBS = -lm
+LIBS = $(MATHLIB)
 DEFS = 
 OBJS = simple_blas.o
 endif
