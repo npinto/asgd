@@ -15,11 +15,11 @@ Ytst = data['Ytst']
 
 n_samples, n_features = Xtrn.shape
 
-svm = NaiveBinaryASGD(n_features, l2_regularization=1e-6)
+svm = NaiveBinaryASGD(n_features, l2_regularization=1e-2)
 
 np.random.seed(42)
 
-for i in xrange(5):
+for i in xrange(100):
 
     print "fit..."
     print "iteration", (i + 1)
