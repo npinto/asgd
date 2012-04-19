@@ -1,90 +1,74 @@
+#include "asgd_blas.h"
 #include "asgd_core.h"
 
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#include "asgd_blas.h"
+// MACRO_PARTIAL_FIT_PARAMS_DEF is defined in asgd_core.h
+// MACRO_PARTIAL_FIT_PARAMS_VAL is defined in asgd_core.h
 
-void core_partial_fit(
-		long *n_observs,
-		float *sgd_step_size,
-		float *asgd_step_size,
-
-		float l2_reg,
-		float sgd_step_size0,
-		float sgd_step_size_scheduling_exp,
-		float sgd_step_size_scheduling_mul,
-
-		float* sgd_weights,
-		size_t sgd_weights_rows,
-		size_t sgd_weights_cols,
-
-		float* sgd_bias,
-		size_t sgd_bias_rows,
-		size_t sgd_bias_cols,
-
-		float *asgd_weights,
-		size_t asgd_weights_rows,
-		size_t asgd_weights_cols,
-
-		float *asgd_bias,
-		size_t asgd_bias_rows,
-		size_t asgd_bias_cols,
-
-		float *X,
-		size_t X_rows,
-		size_t X_cols,
-
-		float *y,
-		size_t y_rows,
-		size_t y_cols)
+static void core_partial_fit_stochastic_binary(
+	MACRO_PARTIAL_FIT_PARAMS_DEF
+	)
 {
+	// v x v
+	// sgd_weights = n_feats x 1
+	// sgd_bias = 1 x 1
+	// X = n_points x n_feats
+	// y = n_points x 1
+	
+	float *obs;
 	for (size_t i = 0; i < X_rows; ++i)
 	{
+		obs = X + i * X_cols;
+		
 		// compute margin //
-		// TODO sgd_weights will become a matrix
-		// notice that each row in X is also a column because of the stride
-		float margin = y[y_cols*i] * 
+		// margin = label (obs * sgd_weights + sgd_bias)
+		float margin = y[i] * 
 			cblas_sdsdot(
 				X_cols,
-				sgd_bias[0],
-				X+X_cols*i, 1,
+				*sgd_bias,
+				obs, 1,
 				sgd_weights, 1);
 
 		// update sgd //
 		if (l2_reg != 0.f)
 		{
-			// TODO sgd_weights will become a matrix
-			cblas_sscal(sgd_weights_rows,
+			// sgd_weights *= (1 - l2_reg * sgd_step_size)
+			cblas_sscal(sgd_weights_rows * sgd_weights_cols,
 					1 - l2_reg * *sgd_step_size,
 					sgd_weights, 1);
 		}
 
 		if (margin < 1)
 		{
-			// TODO sgd_weights will become a matrix
+			// sgd_weights += sgd_step_size * label * obs
 			cblas_saxpy(
 					sgd_weights_rows, 
-					*sgd_step_size * y[y_cols*i],
-					X+X_cols*i, 1,
+					*sgd_step_size * y[i],
+					obs, 1,
 					sgd_weights, 1);
 
-			// TODO sgd_bias will become a vector
-			sgd_bias[0] += *sgd_step_size * y[y_cols*i];
+			// sgd_bias += sgd_step_size * label
+			*sgd_bias += *sgd_step_size * y[i];
 		}
 
 		// update asgd //
+		// asgd_weights = (1 - asgd_step_size) * asgd_weights + asgd_step_size * sgd_weights
 		cblas_sscal(asgd_weights_rows,
 				1 - *asgd_step_size,
 				asgd_weights, 1);
-
+		
 		cblas_saxpy(asgd_weights_rows,
 				*asgd_step_size,
 				sgd_weights, 1,
 				asgd_weights, 1);
 
-		asgd_bias[0] =
-			(1 - *asgd_step_size) * asgd_bias[0]
-			+ *asgd_step_size * sgd_bias[0];
+		// asgd_bias = (1 - asgd_step_size) * asgd_bias + asgd_step_size * sgd_bias
+		*asgd_bias =
+			(1 - *asgd_step_size) * *asgd_bias
+			+ *asgd_step_size * *sgd_bias;
 
 		// update step_sizes //
 		*n_observs += 1;
@@ -96,6 +80,155 @@ void core_partial_fit(
 			pow(sgd_step_size_scheduling, sgd_step_size_scheduling_exp);
 
 		*asgd_step_size = 1.0f / *n_observs;
+	}
+}
+
+
+static void core_partial_fit_stochastic_ova(
+	MACRO_PARTIAL_FIT_PARAMS_DEF
+	)
+{
+	// v x M
+	// sgd_weights = n_feats x n_classes
+	// sgd_bias = n_classes x 1
+	// X = n_points x n_feats
+	// y = n_points x 1
+	
+	float *margin = malloc(sgd_weights_cols*sizeof(*margin));
+	float *label = malloc(sgd_weights_cols*sizeof(*label));
+	float *obs;
+	
+	for (size_t i = 0; i < X_rows; ++i)
+	{
+		obs = X + i * X_cols;
+
+		// compute unlabeled margin //
+		// margin = obs * sgd_weights + sgd_bias
+		cblas_scopy(sgd_weights_cols, sgd_bias, 1, margin, 1);
+		cblas_sgemv(CblasRowMajor, CblasTrans,
+				sgd_weights_rows, sgd_weights_cols,
+				1.f,
+				sgd_weights, sgd_weights_cols,
+				obs, 1,
+				1.f,
+				margin, 1);
+
+		// update sgd //
+		if (l2_reg != 0.f)
+		{
+			// sgd_weights *= (1 - l2_reg * sgd_step_size)
+			cblas_sscal(sgd_weights_rows * sgd_weights_cols,
+					1 - l2_reg * *sgd_step_size,
+					sgd_weights, 1);
+		}
+
+		// zero out entries that don't violate the margin
+		// and turn the remaining ones into a label coefficient
+		for (size_t j = 0; j < sgd_weights_cols; ++j)
+		{
+			label[j] = y[i] == j ? 1.f : -1.f;
+			label[j] = label[j] * margin[j] < 1.f ? label[j] : 0.f;
+		
+			if(abs(label[j]) > 0.f)
+			{
+				// sgd_weights += sgd_step_size * label * obs
+				// sgd_bias += sgd_step_size * label
+				cblas_saxpy(
+						sgd_weights_rows,
+						*sgd_step_size * label[j],
+						obs, 1,
+						sgd_weights+j, sgd_weights_cols);
+
+				sgd_bias[j] += *sgd_step_size * label[j];
+			}
+		}
+		
+		// sgd_weights += sgd_step_size * label * obs
+		// sgd_bias += sgd_step_size * label
+		/*cblas_sger(CblasRowMajor,
+				sgd_weights_rows, sgd_weights_cols,
+				*sgd_step_size,
+				obs, 1,
+				label, 1,
+				sgd_weights, sgd_weights_cols);
+		
+		cblas_saxpy(sgd_weights_cols, 
+				*sgd_step_size,
+				label, 1,
+				sgd_bias, 1);*/
+
+		// update asgd //
+		// asgd_weights = (1 - asgd_step_size) * asgd_weights + asgd_step_size * sgd_weights
+		cblas_sscal(asgd_weights_rows * asgd_weights_cols,
+				1.f - *asgd_step_size,
+				asgd_weights, 1);
+
+		cblas_saxpy(asgd_weights_rows * asgd_weights_cols,
+				*asgd_step_size,
+				sgd_weights, 1,
+				asgd_weights, 1);
+
+		// asgd_bias = (1 - asgd_step_size) * asgd_bias + asgd_step_size * sgd_bias
+		cblas_sscal(asgd_bias_rows * asgd_bias_cols,
+				1.f - *asgd_step_size,
+				asgd_bias, 1);
+
+		cblas_saxpy(asgd_bias_rows * asgd_bias_cols,
+				*asgd_step_size,
+				sgd_bias, 1,
+				asgd_bias, 1);
+
+		// update step_sizes //
+		*n_observs += 1;
+
+		float sgd_step_size_scheduling =
+			1.f + sgd_step_size0 * *n_observs * sgd_step_size_scheduling_mul;
+
+		*sgd_step_size = sgd_step_size0 /
+			pow(sgd_step_size_scheduling, sgd_step_size_scheduling_exp);
+
+		*asgd_step_size = 1.f / *n_observs;
+	}
+
+	free(margin);
+	free(label);
+};
+
+void core_partial_fit(
+	MACRO_PARTIAL_FIT_PARAMS_DEF
+	)
+{
+	if (batch_size < 2)
+	{
+		// purely stochastic
+		if (sgd_weights_cols == 1)
+		{
+			core_partial_fit_stochastic_binary(
+					MACRO_PARTIAL_FIT_PARAMS_VAL
+					);
+		}
+		else
+		{
+			core_partial_fit_stochastic_ova(
+					MACRO_PARTIAL_FIT_PARAMS_VAL
+					);
+		}
+	}
+	else
+	{
+		// minibatch
+		if (sgd_weights_cols == 1)
+		{
+			/* TODO core_partial_fit_minibatch_binary(
+					MACRO_PARTIAL_FIT_PARAMS_VAL
+					);*/
+		}
+		else
+		{
+			/* TODO core_partial_fit_minibatch_ova(
+					MACRO_PARTIAL_FIT_PARAMS_VAL
+					);*/
+		}
 	}
 }
 

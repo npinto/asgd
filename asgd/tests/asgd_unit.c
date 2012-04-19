@@ -66,7 +66,7 @@ bool test_partial_fit(double tolerance)
 	float out_bias[1][1] = {{0.016f}};
 
 	nb_asgd_t *clf = nb_asgd_init(3, 1e-3f, 1e-6f, 4, false);
-	partial_fit(clf, Xm, ym);
+	partial_fit(clf, Xm, ym, 1);
 
 	bool res = true;
 	printf("testing partial_fit\n");
@@ -132,7 +132,7 @@ bool test_fit(double tolerance)
 	float out_bias[1][1] = {{0.019f}};
 
 	nb_asgd_t *clf = nb_asgd_init(3, 1e-3f, 1e-6f, 4, false);
-	fit(clf, Xm, ym, (int *)r);
+	fit(clf, Xm, ym, (int *)r, 1);
 
 	bool res = true;
 	printf("testing fit\n");

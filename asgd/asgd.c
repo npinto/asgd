@@ -151,9 +151,11 @@ void nb_asgd_destr(
 void partial_fit(
 		nb_asgd_t *data,
 		matrix_t *X,
-		matrix_t *y)
+		matrix_t *y,
+		size_t batch_size)
 {
 	core_partial_fit(
+			batch_size,
 			&data->n_observs,
 			&data->sgd_step_size,
 			&data->asgd_step_size,
@@ -192,7 +194,8 @@ void fit(
 	nb_asgd_t *data,
 	matrix_t *X,
 	matrix_t *y,
-	int *r)
+	int *r,
+	size_t batch_size)
 {
 	mex_assert(X->rows > 1, "fit: X should be a matrix");
 	mex_assert(y->cols == 1, "fit: y should be a column vector");
@@ -203,7 +206,7 @@ void fit(
 		matrix_row_shuffle(Xb, r+i*Xb->rows);
 		matrix_t *yb = matrix_clone(y);
 		matrix_row_shuffle(yb, r+i*Xb->rows);
-		partial_fit(data, Xb, yb);
+		partial_fit(data, Xb, yb, batch_size);
 		matrix_destr(Xb);
 		matrix_destr(yb);
 

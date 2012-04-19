@@ -57,7 +57,7 @@ struct nb_asgd
 	float asgd_step_size;
 	float asgd_step_size0;
 
-	long n_observs;
+	unsigned long n_observs;
 };
 
 nb_asgd_t *nb_asgd_init(
@@ -70,9 +70,9 @@ nb_asgd_t *nb_asgd_init(
 void nb_asgd_destr(
 		nb_asgd_t *data);
 
-void fit(nb_asgd_t *data, matrix_t *X, matrix_t *y, int *r);
+void fit(nb_asgd_t *data, matrix_t *X, matrix_t *y, int *r, size_t batch_size);
 
-void partial_fit(nb_asgd_t *data, matrix_t *X, matrix_t *y);
+void partial_fit(nb_asgd_t *data, matrix_t *X, matrix_t *y, size_t batch_size);
 
 void decision_function(nb_asgd_t *data, matrix_t *X, matrix_t *r);
 

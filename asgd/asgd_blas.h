@@ -2,9 +2,7 @@
 // determine which BLAS implementation to use
 
 #if defined ASGD_BLAS
-#include <cblas.h>
-#elif defined ASGD_SSE
-#include "sse_blas.h"
+#include BLAS_HEADER
 #else
 #include "simple_blas.h"
 #endif
