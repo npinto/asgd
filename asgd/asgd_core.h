@@ -6,7 +6,7 @@
 /* define the parameters of the function as a macro */
 /******** BEGIN MACRO_PARTIAL_FIT_PARAMS_DEF ********/
 #define MACRO_PARTIAL_FIT_PARAMS_DEF \
-		unsigned long batch_size, \
+		size_t batch_size, \
 		unsigned long *n_observs, \
 		float *sgd_step_size, \
 		float *asgd_step_size, \
