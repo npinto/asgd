@@ -12,8 +12,8 @@ class CASGD(object):
 
 	def __init__(
 		self,
+		n_classes,
 		n_features,
-		n_classes=1,
 		sgd_step_size0=1e-2,
 		l2_regularization=1e-3,
 		n_iterations=10,
@@ -196,7 +196,7 @@ class CASGD(object):
 				self.sgd_bias = self.asgd_bias
 
 	def decision_function(self, X):
-		return dot(self.asgd_weights, X.T) + self.asgd_bias
+		return dot(self.asgd_weights.T, X) + self.asgd_bias
 
 	def predict(self, X):
 		return np.sign(self.decision_function(X))
