@@ -180,25 +180,16 @@ class CASGD(object):
 			Xb = X[idx]
 			yb = y[idx]
 			
-			#print "before"
-			#print self.sgd_weights
-			#print self.sgd_bias
-			#print self.asgd_weights
-			#print self.asgd_bias
 			self.partial_fit(Xb, yb, batch_size)
-			#print "after"
-			#print self.sgd_weights
-			#print self.sgd_bias
-			#print self.asgd_weights
-			#print self.asgd_bias
+			
 			if self.feedback:
 				self.sgd_weights = self.asgd_weights
 				self.sgd_bias = self.asgd_bias
 
 	def decision_function(self, X):
-		return dot(self.asgd_weights.T, X) + self.asgd_bias
+		return dot(X, self.asgd_weights) + self.asgd_bias
 
 	def predict(self, X):
-		return np.sign(self.decision_function(X))
+		return self.decision_function(X).argmax(1)
 
 
