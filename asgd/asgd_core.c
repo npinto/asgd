@@ -310,7 +310,7 @@ static void core_partial_fit_minibatch_ova(
 	float *obs;
 	assert(margin != NULL);
 
-	for (size_t i = 0; i < n_points; i += batch_size)
+	for (size_t i=0; i < n_points; i += batch_size)
 	{
 		// the last iteration might require a smaller batch
 		// in case X_rows % batch_size != 0
@@ -405,7 +405,6 @@ static void core_partial_fit_minibatch_ova(
 	free(margin);
 }
 
-
 static void core_partial_fit_minibatch_ova_inc(
 	MACRO_PARTIAL_FIT_PARAMS_DEF
 	)
@@ -429,16 +428,13 @@ static void core_partial_fit_minibatch_ova_inc(
 	size_t n_classes = sgd_weights_cols;
 	size_t longest_batch = floor((sqrt(1.f + 8.f * n_points) - 1.f) / 2.f) + 1;
 
-	float *margin = malloc(longest_batch * n_feats * sizeof(*margin));
+	float *margin = malloc(longest_batch * n_classes * sizeof(*margin));
 	float *obs;
 	assert(margin != NULL);
 
-	// ignore given parameter
-	// start from 1 and increase at each iteration
-	batch_size = 0;
 	for (size_t i = 0; i < n_points; i += batch_size)
 	{
-		++batch_size;
+		batch_size += 1;
 		// the last iteration might require a smaller batch
 		// in case X_rows % batch_size != 0
 		if (i + batch_size > n_points)
@@ -477,7 +473,7 @@ static void core_partial_fit_minibatch_ova_inc(
 		{
 			for (size_t j = 0; j < n_classes; ++j)
 			{
-				size_t index = k * n_feats + j;
+				size_t index = k * n_classes + j;
 				float label = y[i+k] == j ? 1.f : -1.f;
 				label = label * margin[index] < 1.f ? label : 0.f;
 	
@@ -498,21 +494,21 @@ static void core_partial_fit_minibatch_ova_inc(
 
 		// update asgd //
 		// asgd_weights = (1 - asgd_step_size) * asgd_weights + asgd_step_size * sgd_weights
-		cblas_sscal(asgd_weights_rows * asgd_weights_cols,
+		cblas_sscal(n_feats * n_classes,
 				1 - *asgd_step_size,
 				asgd_weights, 1);
 		
-		cblas_saxpy(asgd_weights_rows * asgd_weights_cols,
+		cblas_saxpy(n_feats * n_classes,
 				*asgd_step_size,
 				sgd_weights, 1,
 				asgd_weights, 1);
 
 		// asgd_bias = (1 - asgd_step_size) * asgd_bias + asgd_step_size * sgd_bias
-		cblas_sscal(asgd_bias_rows * asgd_bias_cols,
+		cblas_sscal(n_classes,
 				1.f - *asgd_step_size,
 				asgd_bias, 1);
 
-		cblas_saxpy(asgd_bias_rows * asgd_bias_cols,
+		cblas_saxpy(n_classes,
 				*asgd_step_size,
 				sgd_bias, 1,
 				asgd_bias, 1);
