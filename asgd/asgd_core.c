@@ -325,7 +325,8 @@ static void core_partial_fit_minibatch_ova(
 		// margin = label * (obs * sgd_weights + sgd_bias)
 		for (size_t j = 0; j < batch_size; ++j)
 		{
-			cblas_scopy(n_classes, sgd_bias, 1, margin, 1);
+			float *margin_row = margin + j * n_classes;
+			cblas_scopy(n_classes, sgd_bias, 1, margin_row, 1);
 		}
 		cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
 				batch_size, n_classes, n_feats,
@@ -451,7 +452,8 @@ static void core_partial_fit_minibatch_ova_inc(
 		// margin = label * (obs * sgd_weights + sgd_bias)
 		for (size_t j = 0; j < batch_size; ++j)
 		{
-			cblas_scopy(n_feats, sgd_bias, 1, margin, 1);
+			float *margin_row = margin + j * n_classes;
+			cblas_scopy(n_classes, sgd_bias, 1, margin_row, 1);
 		}
 		cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
 				batch_size, n_classes, n_feats,
