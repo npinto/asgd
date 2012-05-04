@@ -405,129 +405,6 @@ static void core_partial_fit_minibatch_ova(
 	free(margin);
 }
 
-static void core_partial_fit_minibatch_ova_inc(
-	MACRO_PARTIAL_FIT_PARAMS_DEF
-	)
-{
-	// M x M
-	// sgd_weights = n_feats x n_classes
-	// sgd_bias = n_classes x 1
-	// X = n_points x n_feats
-	// y = n_points x 1
-	
-	assert(sgd_weights_rows == asgd_weights_rows);
-	assert(sgd_weights_cols == asgd_weights_cols);
-	assert(sgd_bias_rows == asgd_bias_rows);
-	assert(sgd_bias_cols == asgd_bias_cols);
-	
-	assert(sgd_weights_cols == sgd_bias_rows); // classes
-	assert(X_rows == y_rows); // points
-	assert(X_cols == sgd_weights_rows); // feats
-	size_t n_points = X_rows;
-	size_t n_feats = X_cols;
-	size_t n_classes = sgd_weights_cols;
-	size_t longest_batch = floor((sqrt(1.f + 8.f * n_points) - 1.f) / 2.f) + 1;
-
-	float *margin = malloc(longest_batch * n_classes * sizeof(*margin));
-	float *obs;
-	assert(margin != NULL);
-
-	for (size_t i = 0; i < n_points; i += batch_size)
-	{
-		batch_size += 1;
-		// the last iteration might require a smaller batch
-		// in case X_rows % batch_size != 0
-		if (i + batch_size > n_points)
-		{
-			batch_size = n_points - i;
-		}
-
-		obs = X + i * X_cols;
-		
-		// compute margin //
-		// margin = label * (obs * sgd_weights + sgd_bias)
-		for (size_t j = 0; j < batch_size; ++j)
-		{
-			float *margin_row = margin + j * n_classes;
-			cblas_scopy(n_classes, sgd_bias, 1, margin_row, 1);
-		}
-		cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
-				batch_size, n_classes, n_feats,
-				1.f,
-				obs, n_feats,
-				sgd_weights, n_classes,
-				1.f,
-				margin, n_classes);
-
-
-		// update sgd //
-		if (l2_reg != 0.f)
-		{
-			// sgd_weights *= (1 - l2_reg * sgd_step_size)
-			cblas_sscal(n_feats * n_classes,
-					1 - l2_reg * *sgd_step_size,
-					sgd_weights, 1);
-		}
-
-		for (size_t k = 0; k < batch_size; ++k)
-		{
-			for (size_t j = 0; j < n_classes; ++j)
-			{
-				size_t index = k * n_classes + j;
-				float label = y[i+k] == j ? 1.f : -1.f;
-				label = label * margin[index] < 1.f ? label : 0.f;
-	
-				if(fabs(label) > 0.f)
-				{
-					// sgd_weights += sgd_step_size * label * obs
-					// sgd_bias += sgd_step_size * label
-					cblas_saxpy(
-							n_feats,
-							*sgd_step_size * label / batch_size,
-							obs + k * n_feats, 1,
-							sgd_weights + j, n_classes);
-	
-					sgd_bias[j] += *sgd_step_size * label / batch_size;
-				}
-			}
-		}
-
-		// update asgd //
-		// asgd_weights = (1 - asgd_step_size) * asgd_weights + asgd_step_size * sgd_weights
-		cblas_sscal(n_feats * n_classes,
-				1 - *asgd_step_size,
-				asgd_weights, 1);
-		
-		cblas_saxpy(n_feats * n_classes,
-				*asgd_step_size,
-				sgd_weights, 1,
-				asgd_weights, 1);
-
-		// asgd_bias = (1 - asgd_step_size) * asgd_bias + asgd_step_size * sgd_bias
-		cblas_sscal(n_classes,
-				1.f - *asgd_step_size,
-				asgd_bias, 1);
-
-		cblas_saxpy(n_classes,
-				*asgd_step_size,
-				sgd_bias, 1,
-				asgd_bias, 1);
-
-		// update step_sizes //
-		*n_observs += 1;
-
-		float sgd_step_size_scheduling =
-			1 + sgd_step_size0 * *n_observs * sgd_step_size_scheduling_mul;
-
-		*sgd_step_size = sgd_step_size0 /
-			pow(sgd_step_size_scheduling, sgd_step_size_scheduling_exp);
-
-		*asgd_step_size = 1.0f / *n_observs;
-	}
-
-	free(margin);
-}
-
 
 void core_partial_fit(
 	MACRO_PARTIAL_FIT_PARAMS_DEF
@@ -536,12 +413,9 @@ void core_partial_fit(
 	switch (batch_size)
 	{
 		case 0:
-			// determine batch size automatically
-			core_partial_fit_minibatch_ova_inc(
-					MACRO_PARTIAL_FIT_PARAMS_VAL
-					);
-			break;
-
+			fprintf(stderr, "batch size of 0 not allowed\n");
+			return;
+		
 		case 1:
 			// purely stochastic
 			if (sgd_weights_cols == 1)
@@ -572,7 +446,6 @@ void core_partial_fit(
 						MACRO_PARTIAL_FIT_PARAMS_VAL
 						);
 			}
-			break;
 	}
 }
 
