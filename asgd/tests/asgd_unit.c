@@ -2,6 +2,7 @@
 #include "stdlib.h"
 
 #include "../asgd.h"
+#include "../asgd_core.h"
 
 bool test_swap()
 {
@@ -49,6 +50,63 @@ bool test_row_shuffle()
 	}
 }
 
+bool test_core_partial_fit()
+{
+
+	size_t n_points = 5;
+	size_t n_feats = 3;
+	size_t n_classes = 3;
+	float X[5][3] = {{1,2,3},{4,5,6},{7,8,9},{10,11,12},{13,14,15}};
+	float y[5][1] = {{16},{17},{18},{19},{20}};
+	size_t perm[5] = {0,1,2,3,4};
+	float sgd_weights[3][3] = {{0}};
+	float asgd_weights[3][3] = {{0}};
+	float sgd_bias[3][1] = {{0}};
+	float asgd_bias[3][1] = {{0}};
+
+	// TODO parameters need to be tuned
+	unsigned long n_observs = 0;
+	float sgd_step_size = 1.f;
+	float asgd_step_size = 1.f;
+	core_partial_fit(
+			2,
+			&n_observs,
+			&sgd_step_size,
+			&asgd_step_size,
+
+			0.01,
+			1.0,
+			1.0,
+			1.0,
+			
+			(float *)sgd_weights,
+			n_feats,
+			n_classes,
+			
+			(float *)sgd_bias,
+			n_classes,
+			1,
+
+			(float *)asgd_weights,
+			n_feats,
+			n_classes,
+			
+			(float *)asgd_bias,
+			n_classes,
+			1,
+
+			(float *)X,
+			n_points,
+			n_feats,
+
+			(float *)y,
+			n_points,
+			1,
+			(size_t *)perm);
+
+	return false;
+}
+
 bool test_partial_fit(double tolerance)
 {
 	float Xd[5][3] = {{1,2,3},{4,5,6},{7,8,9},{10,11,12},{13,14,15}};
@@ -66,7 +124,7 @@ bool test_partial_fit(double tolerance)
 	float out_bias[1][1] = {{0.016f}};
 
 	nb_asgd_t *clf = nb_asgd_init(3, 1e-3f, 1e-6f, 4, false);
-	partial_fit(clf, Xm, ym, 1);
+	partial_fit(clf, Xm, ym, NULL, 1);
 
 	bool res = true;
 	printf("testing partial_fit\n");
@@ -302,6 +360,7 @@ int main(void)
 	res &= test_row_shuffle();
 	res &= test_decision_function(tolerance);
 	res &= test_predict(tolerance);
+	res &= test_core_partial_fit();
 	res &= test_partial_fit(tolerance);
 	res &= test_fit(tolerance);
 

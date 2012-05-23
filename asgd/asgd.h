@@ -72,7 +72,7 @@ void nb_asgd_destr(
 
 void fit(nb_asgd_t *data, matrix_t *X, matrix_t *y, int *r, size_t batch_size);
 
-void partial_fit(nb_asgd_t *data, matrix_t *X, matrix_t *y, size_t batch_size);
+void partial_fit(nb_asgd_t *data, matrix_t *X, matrix_t *y, size_t *perm, size_t batch_size);
 
 void decision_function(nb_asgd_t *data, matrix_t *X, matrix_t *r);
 

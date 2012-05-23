@@ -152,6 +152,7 @@ void partial_fit(
 		nb_asgd_t *data,
 		matrix_t *X,
 		matrix_t *y,
+		size_t *perm,
 		size_t batch_size)
 {
 	core_partial_fit(
@@ -187,7 +188,8 @@ void partial_fit(
 
 			y->data,
 			y->rows,
-			y->cols);
+			y->cols,
+			perm);
 }
 
 void fit(
@@ -206,7 +208,7 @@ void fit(
 		matrix_row_shuffle(Xb, r+i*Xb->rows);
 		matrix_t *yb = matrix_clone(y);
 		matrix_row_shuffle(yb, r+i*Xb->rows);
-		partial_fit(data, Xb, yb, batch_size);
+		partial_fit(data, Xb, yb, NULL, batch_size);
 		matrix_destr(Xb);
 		matrix_destr(yb);
 

@@ -26,13 +26,13 @@ INCDIRS =
 LIBDIRS = 
 
 # list of libraries to link against
-LIBS = -lm
+LIBS = -lm -lrt
 
 # list of object files to compile with
 OBJS =
 
-# list of macros to define for the compiler
-DEFS = 
+# list of macros for the compiler
+DEFS = -D_POSIX_C_SOURCE=199309 
 
 # compiler
 CC = gcc
@@ -41,7 +41,7 @@ CC = gcc
 DEBUG = -g
 
 # compiler flags
-CFLAGS = -Wall -std=c99 -fPIC
+CFLAGS = -Wall -std=c99 -fPIC -O3 -march=native
 
 # MKL
 BLAS_INCDIRS = -I/opt/intel/mkl/include

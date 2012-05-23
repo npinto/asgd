@@ -38,7 +38,8 @@
 \
 		float *y, \
 		size_t y_rows, \
-		size_t y_cols
+		size_t y_cols, \
+		size_t *perm
 
 /********* END MACRO_PARTIAL_FIT_PARAMS_DEF *********/
 
@@ -76,7 +77,8 @@
 \
 		y, \
 		y_rows, \
-		y_cols
+		y_cols, \
+		perm
 
 /********* END MACRO_PARTIAL_FIT_PARAMS_VAL *********/
 

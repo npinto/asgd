@@ -45,11 +45,12 @@ class CASGD(object):
 		self.core_lib = ct.CDLL("./asgd_core.so")
 	
 	def __del__(self):
-		dl = ct.CDLL("libdl.so")
-		dl.dlclose(self.core_lib._handle)
+		#dl = ct.CDLL("libdl.so")
+		#dl.dlclose(self.core_lib._handle)
+		pass
 
 
-	def partial_fit(self, X, y, batch_size):
+	def partial_fit(self, X, y, perm, batch_size):
 		
 		# force ndarrays to point to different data
 		if self.sgd_weights is self.asgd_weights:
@@ -123,6 +124,10 @@ class CASGD(object):
 		if y.ndim == 2:
 			y_cols = ct.c_size_t(y.shape[1])
 
+		if perm != None:
+			size_t_length = str(ct.sizeof(ct.c_size_t))
+			perm = np.require(perm, dtype=np.dtype('u'+size_t_length), requirements=input_req)
+		
 		self.core_lib.core_partial_fit(
 				batch_size,
 				ct.byref(n_observations),
@@ -149,7 +154,8 @@ class CASGD(object):
 				X_cols,
 				y.ctypes.data_as(ct.POINTER(ct.c_float)),
 				y_rows,
-				y_cols)
+				y_cols,
+				perm.ctypes.data_as(ct.POINTER(ct.c_size_t)))
 
 		# --
 		self.sgd_weights = sgd_weights
@@ -161,6 +167,8 @@ class CASGD(object):
 		self.asgd_step_size = asgd_step_size.value
 
 		self.n_observations = n_observations.value
+
+		return ct.c_int.in_dll(self.core_lib, 'time_count');
 
 
 	def fit(self, X, y, batch_size):
