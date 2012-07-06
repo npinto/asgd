@@ -256,13 +256,13 @@ void predict(
 	{
 		for (size_t j = 0; j < r->cols; ++j)
 		{
-			// if the entry is zero, leave it zero
-			// otherwise, take the sign
+			// take positive as +1
+			// and nonpositive as -1
 			if (matrix_get(r, i, j) > 0.0f)
 			{
 				matrix_set(r, i, j, 1.0f);
 			}
-			else if (matrix_get(r, i, j) < 0.0f)
+			else
 			{
 				matrix_set(r, i, j, -1.0f);
 			}
